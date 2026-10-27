@@ -1,0 +1,43 @@
+{
+  "template": "https://github.com/backofficedev/cookiecutter_chartbook",
+  "commit": "a67eeeaaf0203f16497756cfd1c7cfb416feb8b5",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "P16. Asset and Investor Embeddings",
+      "project_slug": "p16_gabaix_et_al_2026",
+      "project_description": "A data science project",
+      "author_name": "Juan de Haro, Shuxin Zhang, Yanne Guo, Zonglin Li",
+      "author_email": "juan.dharo.gar@gmail.com",
+      "python_version": "3.12",
+      "environment_manager": "conda",
+      "include_latex_reports": true,
+      "include_jupyter_notebooks": true,
+      "include_r_scripts": false,
+      "include_stata_scripts": false,
+      "include_chartbook": true,
+      "include_github_actions": true,
+      "include_fred": false,
+      "include_fed_yield_curve": false,
+      "include_ofr_api": false,
+      "include_bloomberg": false,
+      "include_crsp_stock": true,
+      "include_crsp_compustat": true,
+      "_copy_without_render": [
+        "*.bst",
+        "*.sty",
+        "*.eps",
+        "*.ipe",
+        "*.png",
+        "*.pdf",
+        "*.tex",
+        "*.bib",
+        ".github/workflows/*.yml",
+        ".claude/skills/*/*.md"
+      ],
+      "_template": "https://github.com/backofficedev/cookiecutter_chartbook",
+      "_commit": "a67eeeaaf0203f16497756cfd1c7cfb416feb8b5"
+    }
+  },
+  "directory": null
+}

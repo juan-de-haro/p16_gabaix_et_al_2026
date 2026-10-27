@@ -1,0 +1,27 @@
+[project]
+name = "P16. Asset and Investor Embeddings"
+description = "A data science project"
+maintainer = "Juan de Haro, Shuxin Zhang, Yanne Guo, Zonglin Li"
+contributors = ["Juan de Haro, Shuxin Zhang, Yanne Guo, Zonglin Li"]
+os_compatibility = ["Windows", "Linux", "macOS"]
+build = """
+module load anaconda3/3.11.4 TeXLive/2023
+doit
+"""
+
+[notebooks]
+
+
+[notebooks.01_example_notebook_interactive]
+name = "Example Notebook Interactive"
+description = "Example notebook for demonstrating how to construct a Chartbook notebook."
+path = "_output/01_example_notebook_interactive.ipynb"
+
+
+
+
+[dataframes]
+
+
+[charts]
+
