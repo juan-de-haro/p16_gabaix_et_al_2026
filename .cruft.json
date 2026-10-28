@@ -10,7 +10,7 @@
       "author_name": "Juan de Haro, Shuxin Zhang, Yanne Guo, Zonglin Li",
       "author_email": "juan.dharo.gar@gmail.com",
       "python_version": "3.12",
-      "environment_manager": "conda",
+      "environment_manager": "uv",
       "include_latex_reports": true,
       "include_jupyter_notebooks": true,
       "include_r_scripts": false,
