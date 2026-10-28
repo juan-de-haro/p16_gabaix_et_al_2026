@@ -14,12 +14,13 @@ You can do this by downloading and installing it from here ([windows](https://tu
 and [mac](https://tug.org/mactex/mactex-download.html) installers).
 
 
-First, you must have the `conda` package manager installed (e.g., via Anaconda). However, I recommend using `mamba`, via [miniforge](https://github.com/conda-forge/miniforge) as it is faster and more lightweight than `conda`.
-
-Create and activate the conda environment:
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management. First, install uv if you haven't already:
 ```bash
-conda env create -f environment.yml
-conda activate p16_gabaix_et_al_2026
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+Then sync the environment:
+```bash
+uv sync
 ```
 
 Finally, run the project tasks:
@@ -142,26 +143,23 @@ loaded by importing `config`.
 
 ### Dependencies and Virtual Environments
 
-#### Working with `conda` environments
+#### Working with `uv`
 
-This project uses conda for environment management. The dependencies are stored in `environment.yml`.
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management. Dependencies are defined in `pyproject.toml` and locked in `uv.lock`.
 
-To create/update the environment:
+To sync your environment with the lockfile:
 ```bash
-conda env create -f environment.yml
-# or to update an existing environment:
-conda env update -f environment.yml
+uv sync
 ```
 
-To activate the environment:
+To add a new dependency:
 ```bash
-conda activate p16_gabaix_et_al_2026
+uv add <package-name>
 ```
 
-To export the current environment:
+To update all dependencies:
 ```bash
-conda env export > environment.yml
+uv lock --upgrade
+uv sync
 ```
-
-**Tip:** Consider using `mamba` instead of `conda` for faster package resolution. Install via [miniforge](https://github.com/conda-forge/miniforge).
 
