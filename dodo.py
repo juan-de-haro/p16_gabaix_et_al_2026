@@ -15,6 +15,8 @@ import shutil
 from os import environ
 from pathlib import Path
 
+import pandas as pd
+
 from settings import config
 
 DOIT_CONFIG = {"backend": "sqlite3", "dep_file": "./.doit-db.sqlite"}
@@ -183,10 +185,16 @@ def task_s34():
             s34_dir / f"holdings_{q}.pkl",
             s34_dir / f"investors_{q}.pkl",
             s34_dir / f"log_{q}.pkl",
+            s34_dir / f"security_{q}.pkl",
             DATA_DIR / "crsp_cusip_map.pkl",
             DATA_DIR / "filter_log_s34.pkl",
         ],
-        "uptodate": [config_changed({"quarter": q})],
+        "uptodate": [config_changed({
+            "quarter": q,
+            "historical_fallback": config(
+                "S34_HISTORICAL_FALLBACK", default="False", cast=str
+            ),
+        })],
         "clean": [],
     }
  
@@ -227,6 +235,37 @@ def task_jkp():
             DATA_DIR / "firm_quarterly_jkp_full.pkl",
             DATA_DIR / "filter_log_firms.pkl",
         ],
+        "clean": [],
+    }
+
+
+def task_holdings_provisional():
+    """Combine date-valid S12/S34 firm holdings without economic deduplication."""
+    from doit.tools import config_changed
+
+    quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
+    qdate = _pipeline_quarter_end()
+    return {
+        "actions": [[
+            sys.executable, "src/holdings_pipeline/integrate_holdings.py",
+            "--quarter", quarter,
+        ]],
+        "file_dep": [
+            DATA_DIR / "clean" / "s12" / quarter / "holdings_s12.parquet",
+            DATA_DIR / "clean" / "s12" / quarter / "filter_log_s12.parquet",
+            DATA_DIR / "clean" / "s12" / quarter / "holdings_s12_security.parquet",
+            DATA_DIR / "s34" / f"holdings_{qdate}.pkl",
+            DATA_DIR / "s34" / f"log_{qdate}.pkl",
+            DATA_DIR / "s34" / f"security_{qdate}.pkl",
+            "src/holdings_pipeline/integrate_holdings.py",
+        ],
+        "task_dep": ["s12:process", "s34"],
+        "targets": [
+            DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
+            OUTPUT_DIR / "combined" / quarter / "matching_audit.json",
+            OUTPUT_DIR / "combined" / quarter / "link_conflicts.parquet",
+        ],
+        "uptodate": [config_changed({"quarter": quarter})],
         "clean": [],
     }
 
