@@ -168,7 +168,7 @@ SAMPLE = sorted({SAVED[0], SAVED[len(SAVED) // 2], SAVED[-1]}) if SAVED else []
 
 
 @pytest.mark.skipif(not SAMPLE, reason="No saved S34 holdings yet")
-@pytest.mark.parametrize("path", SAMPLE, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", SAMPLE, ids=[p.stem for p in SAMPLE])
 def test_saved_quarter(path):
     q = path.stem.replace("holdings_", "")
     hold = pd.read_pickle(path)
