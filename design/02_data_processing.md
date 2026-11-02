@@ -167,6 +167,93 @@ Kept separate so `firm_quarterly` stays small.
 
 ## Open decisions
 
+### Implemented S12 contribution
+
+`src/holdings_pipeline/clean_s12.py` produces an S12-only contribution to this design. Run
+`uv run doit s12` after setting `START_DATE` and `END_DATE` in the local `.env`;
+the last quarter of that period is processed. To process another fully covered
+quarter, run `uv run python src/holdings_pipeline/clean_s12.py --quarter YYYYQn`.
+
+For each fund, it selects the latest `rdate` within the processing quarter and
+the earliest `fdate` containing that report. Earlier-quarter reports are not
+carried forward. Identical positions are deduplicated; conflicting source keys,
+ambiguous historical CUSIP mappings, and multiple source CUSIPs mapping to the
+same security are quarantined for inspection instead of being summed.
+
+CUSIP mappings use CRSP name intervals valid on `rdate`. The contribution keeps
+US common stocks on NYSE/AMEX/NASDAQ at both the report date and quarter end.
+The monthly price and split inputs use CRSP CIZ (`crspm.msf_v2`); historical name
+intervals currently use `crspm.msenames`, which covers the 2022 development sample.
+Recheck historical-name coverage before extending beyond the legacy period.
+
+S12 share quantities are on the **FDATE split basis**, not necessarily the RDATE
+basis. Following the [WRDS Return Gap example](https://wrds-www.wharton.upenn.edu/pages/wrds-research/macros/wrds-macros-return-gap/),
+quarter-end shares are `shares * factor(fdate) / factor(quarter_end)`.
+Quarter-end market value uses the absolute CRSP price. Firm market capitalization
+sums all eligible share classes, including classes not held by a particular fund;
+CRSP `shrout` is in thousands. Share counts summed across classes are retained for
+traceability but are not economically fungible; use dollar holdings for comparisons.
+
+Outputs in `_data/clean/s12/YYYYQn/` include `holdings_s12`, security-level
+holdings, `investors_s12`, `firm_names_s12`, the selected report dates, and a
+filter log. AUM and portfolio weights describe the matched US common-equity
+subset, not the fund's total NAV. Diagnostics, rejected rows, and an HTML quality
+report are saved under `_output/s12/YYYYQn/`.
+
+As agreed for the S12 handoff, S12/S34 overlap handling, the JKP-based common
+universe, concentration filters, the final iterative 20x20 filter, winsorization,
+and two-way demeaning remain in the combined pipeline. Recompute portfolio
+weights after those filters. Ownership above 100% is explicitly flagged and
+retained for review, rather than being silently clipped or declared valid.
+
+The initial **2022Q4 pilot** produced 1,735,513 fund-firm positions, 17,799
+funds, and 4,156 firms. Structural checks passed, but four firms had aggregate
+S12 ownership above one: Thunder Bridge Capital Partners III, Iris Acquisition,
+Landcadia Holdings IV, and OmniLit Acquisition. All four have a 90-97% fall in
+CRSP shares outstanding from November to December 2022, with unchanged split
+factors. The [OmniLit 2022 annual report](https://www.sec.gov/Archives/edgar/data/1866816/000149315223002997/form10-k.htm)
+confirms substantial December redemptions; [Thunder Bridge's filing](https://www.sec.gov/Archives/edgar/data/1815753/000121390023012835/ea173935-8k_thunderiii.htm)
+also documents December redemption payments. This supports investigating
+corporate-action timing and source alignment; it does not establish which
+individual holdings are wrong. The flagged positions remain unresolved.
+
+The follow-up review is reproducible with `python src/holdings_pipeline/audit_s12_ownership.py`
+after processing 2022Q4 and retaining the supplemental evidence cache at
+`_data/raw/s12/ownership_review_2022Q4`. It writes a Chinese evidence report,
+57 position-level evidence rows, and machine-readable findings under
+`_output/s12/2022Q4/ownership_review`, and attaches them to the quality report.
+The review manifest `design/s12_2022q4_ownership_evidence.json` contains source
+links and judgments only; it is never a numerical override table.
+
+The four CRSP denominators reconcile to issuer-disclosed Class A shares within
+thousand-share rounding. The four firms still exceed 100% using only RDATE
+2022-12-31 reports. A fresh bounded WRDS query matches the annual cache, and
+none of the 57 selected positions changes share count across available FDATEs.
+Original fund filings reproduce the major positions, with several valued at
+redemption prices. First Trust's year-end N-PORT XML and portfolio exhibit
+disagree. These findings support a redemption/source-alignment conflict, but
+do not establish replacement balances or justify setting positions to zero.
+Unlisted founder Class B shares must not be inserted into the denominator at
+the Class A price without an explicit, consistently applied research rule.
+
+`clean_s12.py` now always regenerates report-date ownership decomposition and
+security-level review rows, including report age, contextual report-month
+SHROUT and individual ownership flags. These diagnostics never filter or
+rescale holdings. The detailed 2022Q4 source investigation is an explicit
+second step; rerun it after cleaning to refresh the evidence annotation.
+
+The pilot's 37.97% CUSIP match rate is calculated against all selected S12
+positions. A WRDS stock-name spot check of the 20 most frequent unmatched codes
+included ASML, Roche, Nestle, Tencent, and Kweichow Moutai. Do not interpret that
+rate as coverage of a prefiltered US-equity universe, or assume every unmatched
+position is foreign. The quality report separates codes absent from the cached
+CRSP name history from codes present outside the report-date validity interval.
+The local `_output/s12/2022Q4/unmatched_source_spotcheck.json` preserves that
+one-off source query and its results; recurring diagnostics are regenerated by
+`clean_s12.py` from the cached raw inputs.
+
+### Decisions for the combined pipeline
+
 - **Double counting between s12 and s34:** the rule for combining the two sources (step 4).
 - **Delisting returns:** confirm that CRSP's new format already includes them in `mthret`.
 - **One universe vs. several:** the relative valuation benchmark uses 4 characteristics, while comovement and portfolio prediction use 6. This design reads Appendix D.1.2 as one universe for everything. Write this choice in the README.

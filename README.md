@@ -7,6 +7,37 @@ A data science project
 
 ## Quick Start
 
+### S12 data contribution
+
+S12 scripts and tests live in `src/holdings_pipeline/`, alongside the S34/JKP
+scripts. Raw data, processed data, local configuration, and generated reports
+stay out of Git; each collaborator uses their own WRDS access to reproduce them.
+
+For the S12 development run, set `WRDS_USERNAME`, `START_DATE=2022-01-01`,
+and `END_DATE=2022-12-31` in your local, Git-ignored `.env`. Use your existing
+WRDS PostgreSQL login configuration (and Duo when prompted). Then run:
+
+```bash
+uv sync --locked
+uv run doit s12
+uv run pytest -q src/holdings_pipeline/test_s12.py
+```
+
+This downloads every available vintage of S12 reports **dated in 2022**, caches
+the supporting CRSP tables, and processes 2022Q4. Cached raw files are verified
+and reused. Clean outputs are in `_data/clean/s12/2022Q4/`; open
+`_output/s12/2022Q4/quality_report.html` for checks, counts, and assumptions.
+
+These are S12-only inputs to the joint pipeline. S12/S34 deduplication,
+JKP-based universe selection, the final 20x20 filter, and demeaning follow after
+combining sources. See [processing details](design/02_data_processing.md#implemented-s12-contribution).
+
+The optional ownership audit uses additional locally cached WRDS/SEC evidence;
+its provenance and unresolved findings are documented in the processing notes.
+The dependency lock pins PyArrow 19.0.1 for compatibility with NumPy 1.26.4.
+
+### Full project template
+
 The quickest way to run code in this repo is to use the following steps.
 
 You must have TexLive (or another LaTeX distribution) installed on your computer and available in your path.

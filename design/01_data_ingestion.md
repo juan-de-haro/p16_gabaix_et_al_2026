@@ -23,18 +23,27 @@
 
 ### `raw_s12_holdings`
 
-- **Script:** `pull_tr_holdings.py`
+- **Script:** `pull_s12.py` (implemented for the S12 contribution)
 - **One row per:** file date × fund × security
 - **Key:** `fdate`, `fundno`, `cusip`
 
 | Column | Description |
 |---|---|
-| `fdate` | File date (date the holdings are valued at) |
-| `rdate` | Report date |
+| `fdate` | Data vintage date; the reported share quantities incorporate splits through this date |
+| `rdate` | Actual date of the reported portfolio holdings; neither date is an SEC publication timestamp |
 | `fundno` | Fund identifier |
 | `fundname` | Fund name |
 | `cusip` | Security identifier |
 | `shares` | Shares held |
+
+The implemented pull selects the annual sample on `rdate` and retains all
+available `fdate` vintages, including later vintages of an in-sample report.
+Files are cached under `_data/raw/s12/START_END/`, with one Parquet file per
+source table and JSON sidecars containing the query, timestamp, row count, and
+SHA-256 checksum. The supporting raw CRSP tables cover the report period through
+the last included vintage so that the share basis can be converted correctly.
+The raw layer does not select funds, remove stale versions, join tables, or
+transform share quantities.
 
 ### `raw_s34_holdings`
 

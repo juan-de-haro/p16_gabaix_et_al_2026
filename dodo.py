@@ -111,6 +111,54 @@ def task_pull():
     }
 
 
+def task_s12():
+    """Download the configured S12 sample, then process its final quarter."""
+    from doit.tools import config_changed
+
+    from holdings_pipeline.pull_s12 import raw_directory, sample_dates
+
+    start, end = sample_dates()
+    quarter = str(end.to_period("Q"))
+    raw = raw_directory(start, end)
+    inputs = [
+        raw / f"raw_{name}.parquet"
+        for name in ("s12_holdings", "crsp_monthly", "crsp_names")
+    ]
+    manifests = [path.with_suffix(".json") for path in inputs]
+    settings = {"start": str(start.date()), "end": str(end.date()), "quarter": quarter}
+    yield {
+        "name": "pull",
+        "doc": "Cache S12 reports and CRSP inputs without cleaning",
+        "actions": [[sys.executable, "src/holdings_pipeline/pull_s12.py"]],
+        "file_dep": ["src/holdings_pipeline/pull_s12.py", "src/settings.py"],
+        "targets": inputs + manifests,
+        "uptodate": [config_changed(settings)],
+        "clean": [],
+    }
+    clean_dir = DATA_DIR / "clean" / "s12" / quarter
+    report_dir = OUTPUT_DIR / "s12" / quarter
+    yield {
+        "name": "process",
+        "doc": "Clean and validate the S12-only contribution before combined filters",
+        "actions": [[sys.executable, "src/holdings_pipeline/clean_s12.py", "--quarter", quarter]],
+        "file_dep": inputs + manifests + [
+            "src/holdings_pipeline/clean_s12.py", "src/holdings_pipeline/pull_s12.py", "src/settings.py"
+        ],
+        "task_dep": ["s12:pull"],
+        "targets": [
+            clean_dir / f"{name}.parquet"
+            for name in (
+                "holdings_s12", "holdings_s12_security", "investors_s12",
+                "firm_names_s12", "filter_log_s12", "selected_reports_s12"
+            )
+        ] + [report_dir / "validation.json", report_dir / "quality_report.html",
+             report_dir / "exceptions" / "ownership_security_review.parquet",
+             report_dir / "exceptions" / "ownership_report_dates.parquet"],
+        "uptodate": [config_changed(settings)],
+        "clean": [],
+    }
+
+
 def task_summary_stats():
     """Generate summary statistics tables"""
     file_dep = ["./src/example_table.py"]

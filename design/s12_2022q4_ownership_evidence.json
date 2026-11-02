@@ -1,0 +1,58 @@
+{
+  "quarter": "2022Q4",
+  "scope": "Evidence annotations only; never overrides holdings, dates, or market capitalization.",
+  "companies": [
+    {
+      "permco": 57982,
+      "name": "Thunder Bridge Capital Partners III",
+      "event_date": "2022-12-16",
+      "class_a_shares_after_redemption": 2100741,
+      "founder_class_b_shares": 10350000,
+      "issuer_url": "https://www.sec.gov/Archives/edgar/data/1815753/000121390023025466/f10k2022_thunderbridge3.htm",
+      "finding": "12月16日延期会议触发40,302,259股赎回；12月30日首次支付，2023年1月另有补付。年末公众A股1,097,741股，加私募A股1,003,000股，共2,100,741股，与CRSP的2,101千股相符。不能将公众流通股数误作全部A股，也不能未经估值直接加入B股。",
+      "judgment": "分母和拆股处理未发现错误。First Trust的1,362,544股、Merger Fund的406,750股分别按10.10美元赎回价估值；支持赎回权益与上市普通股时点不一致的解释。First Trust XML与同份附件存在冲突，尚无可直接替换的逐笔年末股数。"
+    },
+    {
+      "permco": 58081,
+      "name": "Iris Acquisition",
+      "event_date": "2022-12-20",
+      "class_a_shares_after_redemption": 1413104,
+      "founder_class_b_shares": 6900000,
+      "issuer_url": "https://www.sec.gov/Archives/edgar/data/1831874/000141057823000725/iraa-20221231x10k.htm",
+      "finding": "12月20日延期会议相关赎回26,186,896股；2022年报列示剩余A股1,413,104股、B股6,900,000股。CRSP的1,413千股与A股一致。",
+      "judgment": "First Trust的827,337股与Merger Fund的445,218股均可在原始N-PORT复核，估值为每股10.08美元，与赎回价一致。排除仅由旧RDATE造成异常，但不能据赎回价或附件缺项直接认定具体基金年末已持有零股。"
+    },
+    {
+      "permco": 58130,
+      "name": "Landcadia Holdings IV",
+      "event_date": "2022-12-22",
+      "class_a_shares_after_redemption": 1357537,
+      "founder_class_b_shares": 12500000,
+      "issuer_url": "https://www.sec.gov/Archives/edgar/data/1844642/000110465922130963/tm2233527d1_8k.htm",
+      "finding": "12月22日会议相关赎回48,642,463股；12月29日8-K列示剩余A股1,357,537股、B股12,500,000股。CRSP的1,358千股与A股一致。",
+      "judgment": "Merger Fund的726,804股同时见于年报和N-PORT，每股估值10.11美元，接近8-K约10.12美元赎回价；Blackstone的465,000股见于N-PORT，估值9.99美元。不能把两类估值一概解释为已赎回。仍属发行人股本与基金报告的未决冲突，不能定位全部应剔除份额。"
+    },
+    {
+      "permco": 58971,
+      "name": "OmniLit Acquisition",
+      "event_date": "2022-12-21",
+      "class_a_shares_after_redemption": 1348049,
+      "founder_class_b_shares": 4791667,
+      "issuer_url": "https://www.sec.gov/Archives/edgar/data/1866816/000149315223002997/form10-k.htm",
+      "finding": "12月21日会议相关赎回13,026,951股；年末A股1,348,049股、B股4,791,667股。CRSP的1,348千股与A股一致。Vivaldi/First Trust单笔1,414,506股即超过A股总数。",
+      "judgment": "该1,414,506股在年末N-PORT XML中原样存在，每股估值10.28美元恰等于赎回价，且isLoanByFund=N；同份附件未列OmniLit。2023年3月半年报显示这1,414,506股已全数出售，但不提供本次赎回逐笔结算日。2月8日13G/A的事件日是1月31日，不能据此倒推年末零持仓。来源冲突证据最强，但仍不足以擅自置零。"
+    }
+  ],
+  "fund_filings": [
+    {"fundno": 102225, "filename": "first_trust_merger_20221231.xml", "url": "https://www.sec.gov/Archives/edgar/data/1587982/000114554923014048/primary_doc.xml"},
+    {"fundno": 108134, "filename": "first_trust_multi_20221231.xml", "url": "https://www.sec.gov/Archives/edgar/data/1587982/000114554923014047/primary_doc.xml"},
+    {"fundno": 39530, "filename": "merger_fund_20221230.xml", "url": "https://www.sec.gov/Archives/edgar/data/701804/000175272423035670/primary_doc.xml"},
+    {"fundno": 110073, "filename": "blackstone_20221231.xml", "url": "https://www.sec.gov/Archives/edgar/data/1557794/000175272423037607/primary_doc.xml"}
+  ],
+  "additional_sources": [
+    {"title": "First Trust 同份年末持仓附件（未列上述三家公司）", "url": "https://www.sec.gov/Archives/edgar/data/1587982/000114554923014048/merger_123122partf.htm"},
+    {"title": "First Trust 2023年3月半年报（OmniLit全数出售的期间记录）", "url": "https://www.sec.gov/Archives/edgar/data/1587982/000139834423011846/fp0083071-1_ncsrs.htm"},
+    {"title": "First Trust OmniLit 13G/A（事件日2023-01-31，不是2022年末）", "url": "https://www.sec.gov/Archives/edgar/data/1604488/000160448823000011/schedule13gaolit272023.htm"},
+    {"title": "Merger Fund 2022年报（含其他Virtus基金的独立持仓表）", "url": "https://www.sec.gov/Archives/edgar/data/701804/000119312523058100/d394803dncsr.htm"}
+  ]
+}
