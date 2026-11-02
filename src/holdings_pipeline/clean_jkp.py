@@ -29,7 +29,7 @@ Outputs (in DATA_DIR):
 
 Usage (after pull_jkp.py):
 
-    uv run python src/s34_jkp/clean_jkp.py
+    uv run python src/holdings_pipeline/clean_jkp.py
 """
 
 import sys

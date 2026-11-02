@@ -16,11 +16,11 @@ Outputs (in DATA_DIR):
 
 Usage (from the project root). The default is the 2022Q4 pilot:
 
-    uv run python src/s34_jkp/pull_jkp.py
+    uv run python src/holdings_pipeline/pull_jkp.py
 
 Full history:
 
-    uv run python src/s34_jkp/pull_jkp.py --JKP_START=2005-03-31 --JKP_END=2025-12-31
+    uv run python src/holdings_pipeline/pull_jkp.py --JKP_START=2005-03-31 --JKP_END=2025-12-31
 
 JKP on WRDS currently ends in 2025-12.
 """
