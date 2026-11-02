@@ -99,6 +99,38 @@ prove that an S12 fund and S34 manager are distinct economic investors. This tab
 does not resolve their overlap, apply the final firm universe or 20-by-20 filter,
 or provide final portfolio weights. It is an input to Juan's final-sample stage.
 
+### Provisional 2022Q4 company characteristics
+
+With the same ignored `.env` date range and WRDS access, run:
+
+```bash
+conda run -n finm python -m doit firm_characteristics
+```
+
+The full run order and manual command are at the top of
+`src/holdings_pipeline/build_q4_firm_characteristics.py`. The task writes
+`_data/clean/firm_characteristics/2022Q4/firm_quarterly_provisional.parquet`
+with one row per eligible matched `quarter × permco`. It uses CRSP quarter-end
+market equity as `me` and JKP's Compustat-derived book equity as `be`, both in
+USD millions. The core JKP characteristics are market-equity weighted across
+share classes. `log_be_me` is recomputed using the CRSP value.
+
+Inspect `_output/firm_characteristics/2022Q4/coverage_audit.json` and
+`firm_coverage.parquet` for unmatched CRSP/JKP firms, eligibility exclusions,
+and inconsistent book equity within a `gvkey`. These are provisional inputs for
+the initial valuation benchmark. Final sample filters and winsorization belong
+after Juan's combined sample is agreed; the S12/S34 economic overlap remains
+unresolved.
+
+### Initial relative valuation benchmark
+
+After building the provisional company table, run `python -m doit
+relative_valuation` in the project environment. This evaluates the paper's
+placebo, market-beta and four-characteristic reference models for 2022Q4.
+Results, the shared firm split, and run metadata are saved locally under
+`_output/relative_valuation/2022Q4/`. The [application input notes](design/03_application_inputs.md#initial-relative-valuation-pilot)
+describe the score, pilot assumptions, and optional embedding input.
+
 ### Full project template
 
 The quickest way to run code in this repo is to use the following steps.

@@ -269,6 +269,58 @@ def task_holdings_provisional():
         "clean": [],
     }
 
+
+def task_firm_characteristics():
+    """Build CRSP-authoritative Q4 characteristics for matched holdings firms."""
+    from doit.tools import config_changed
+
+    from holdings_pipeline.pull_s12 import raw_directory, sample_dates
+
+    start, end = sample_dates()
+    quarter = str(end.to_period("Q"))
+    return {
+        "actions": [[
+            sys.executable,
+            "src/holdings_pipeline/build_q4_firm_characteristics.py",
+            "--quarter", quarter,
+        ]],
+        "file_dep": [
+            DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
+            DATA_DIR / "jkp_raw.pkl",
+            raw_directory(start, end) / "raw_crsp_monthly.parquet",
+            "src/holdings_pipeline/build_q4_firm_characteristics.py",
+            "src/holdings_pipeline/clean_s12.py",
+        ],
+        "task_dep": ["holdings_provisional", "jkp:pull"],
+        "targets": [
+            DATA_DIR / "clean" / "firm_characteristics" / quarter / "firm_quarterly_provisional.parquet",
+            OUTPUT_DIR / "firm_characteristics" / quarter / "firm_coverage.parquet",
+            OUTPUT_DIR / "firm_characteristics" / quarter / "coverage_audit.json",
+        ],
+        "uptodate": [config_changed({"quarter": quarter, "start": str(start.date()), "end": str(end.date())})],
+        "clean": [],
+    }
+
+def task_relative_valuation():
+    """Run provisional single-quarter relative valuation reference models."""
+    from doit.tools import config_changed
+
+    quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
+    report = OUTPUT_DIR / "relative_valuation" / quarter
+    return {
+        "actions": [[sys.executable, "src/valuation/relative_valuation.py", "--quarter", quarter]],
+        "file_dep": [
+            DATA_DIR / "clean" / "firm_characteristics" / quarter / "firm_quarterly_provisional.parquet",
+            "src/valuation/relative_valuation.py",
+        ],
+        "task_dep": ["firm_characteristics"],
+        "targets": [report / "model_metrics.csv", report / "firm_predictions.parquet",
+                    report / "run_metadata.json"],
+        "uptodate": [config_changed({"quarter": quarter, "seed": 32800})],
+        "clean": [],
+    }
+
+
 def task_summary_stats():
     """Generate summary statistics tables"""
     file_dep = ["./src/example_table.py"]
