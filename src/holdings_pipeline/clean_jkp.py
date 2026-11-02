@@ -36,12 +36,12 @@ import sys
 from pathlib import Path
 
 # settings.py lives in src/, one level up from this folder
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pandas as pd
 
-from pull_jkp import load_chars153, load_jkp_full_raw, load_jkp_raw
+from holdings_pipeline.pull_jkp import load_chars153, load_jkp_full_raw, load_jkp_raw
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))

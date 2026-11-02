@@ -36,6 +36,40 @@ The optional ownership audit uses additional locally cached WRDS/SEC evidence;
 its provenance and unresolved findings are documented in the processing notes.
 The dependency lock pins PyArrow 19.0.1 for compatibility with NumPy 1.26.4.
 
+### S34 and JKP data contribution
+
+S34 (TR 13F institutional holdings) and JKP (firm characteristics) scripts and
+tests live in `src/holdings_pipeline/`. They use the same `.env` settings as S12
+and process the quarter of `END_DATE` (2022Q4 for the development run). On
+Windows, also set `USER=<your name>` in `.env`, because `dodo.py` reads it.
+
+```bash
+uv run doit s34 jkp
+uv run pytest -q src/holdings_pipeline/test_s34.py src/holdings_pipeline/test_jkp.py
+```
+
+Outputs in `_data/`:
+
+- `s34/holdings_<quarter>.pkl`, `s34/investors_<quarter>.pkl`, `s34/log_<quarter>.pkl`
+- `firm_quarterly.pkl`, `firm_quarterly_jkp_full.pkl`, `filter_log_firms.pkl`
+
+Units: S34 `dollar_holding` and `aum` are in USD; JKP `me` and `be` are in
+millions of USD. Each script's docstring documents its processing rules.
+
+Two TR data issues found while building S34 also apply to S12:
+
+- Excluding foreign-incorporated firms (`usincflg = 'Y'`) drops US-listed
+  ordinary shares that are in the JKP universe. In 2022Q4, 258 of the 259
+  universe firms without S34 holdings were foreign-incorporated. S34 keeps them.
+- From 2011, and heavily from 2017Q4, TR records some holdings under a CUSIP the
+  security only received later (e.g. GE in 2017Q4 uses its post-2021 CUSIP).
+  S34 adds a historical-CUSIP fallback; without it, about 8% of 2017Q4 holdings
+  are lost.
+
+S34 includes fund families that are also in S12 (e.g. Vanguard), so S34 and S12
+must not be combined until the overlap rule is agreed. See
+`src/holdings_pipeline/MERGE_NOTES.md`.
+
 ### Full project template
 
 The quickest way to run code in this repo is to use the following steps.

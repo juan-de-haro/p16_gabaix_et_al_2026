@@ -18,7 +18,8 @@ For each report date (rdate), this script:
    Foreign-incorporated firms are kept, matching JKP (legacy share codes
    10, 11, 12).
 4. Adjusts shares for splits between rdate and fdate with CRSP cumulative
-   factors, and values holdings at CRSP month-end prices on rdate.
+   factors, and values holdings at absolute CRSP month-end prices on rdate.
+   Holdings with a missing price or split factor are dropped (step 4_price).
 5. Aggregates PERMNO to PERMCO.
 
 Outputs (in DATA_DIR/s34/), one file per quarter:
@@ -47,7 +48,7 @@ import sys
 from pathlib import Path
 
 # settings.py lives in src/, one level up from this folder
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pandas as pd
@@ -56,7 +57,6 @@ import wrds
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
-WRDS_USERNAME = config("WRDS_USERNAME")
 S34_START = config("S34_START", default="2022-12-31", cast=str)
 S34_END = config("S34_END", default="2022-12-31", cast=str)
 S34_SKIP_EXISTING = config(
@@ -192,7 +192,7 @@ def build_s34_quarter(db, rdate, cusip_map):
 
     ratio = (h["fac_f"] / h["fac_r"]).where(h["ym_f"] != ym_r, 1.0)
     h["shares_adj"] = h["shares"] * ratio
-    h["dollar_holding"] = h["shares_adj"] * h["mthprc"]
+    h["dollar_holding"] = h["shares_adj"] * h["mthprc"].abs()
     adj = h[ratio.ne(1) & ratio.notna()][
         ["mgrno", "permno", "fdate", "shares", "shares_adj", "fac_f", "fac_r"]
     ]
@@ -260,7 +260,7 @@ def load_cusip_map(data_dir=DATA_DIR):
 
 if __name__ == "__main__":
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    db = wrds.Connection(wrds_username=WRDS_USERNAME)
+    db = wrds.Connection(wrds_username=config("WRDS_USERNAME"))
 
     cusip_map = pull_cusip_map(db)
     cusip_map.to_pickle(DATA_DIR / "crsp_cusip_map.pkl")

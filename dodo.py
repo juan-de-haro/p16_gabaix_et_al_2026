@@ -159,6 +159,77 @@ def task_s12():
     }
 
 
+def _pipeline_quarter_end():
+    """Quarter-end date of END_DATE, shared by the S12, S34, and JKP tasks."""
+    from holdings_pipeline.pull_s12 import sample_dates
+ 
+    _, end = sample_dates()
+    return end.to_period("Q").end_time.strftime("%Y-%m-%d")
+ 
+ 
+def task_s34():
+    """Pull and clean S34 for the same quarter as the S12 task."""
+    from doit.tools import config_changed
+ 
+    q = _pipeline_quarter_end()
+    s34_dir = DATA_DIR / "s34"
+    return {
+        "actions": [[
+            sys.executable, "src/holdings_pipeline/pull_s34.py",
+            f"--S34_START={q}", f"--S34_END={q}",
+        ]],
+        "file_dep": ["src/holdings_pipeline/pull_s34.py", "src/settings.py"],
+        "targets": [
+            s34_dir / f"holdings_{q}.pkl",
+            s34_dir / f"investors_{q}.pkl",
+            s34_dir / f"log_{q}.pkl",
+            DATA_DIR / "crsp_cusip_map.pkl",
+            DATA_DIR / "filter_log_s34.pkl",
+        ],
+        "uptodate": [config_changed({"quarter": q})],
+        "clean": [],
+    }
+ 
+ 
+def task_jkp():
+    """Pull JKP characteristics and build the firm tables for the same quarter."""
+    from doit.tools import config_changed
+ 
+    q = _pipeline_quarter_end()
+    raw = [DATA_DIR / "jkp_raw.pkl", DATA_DIR / "jkp_full_raw.pkl"]
+    yield {
+        "name": "pull",
+        "doc": "Pull JKP characteristics from WRDS",
+        "actions": [[
+            sys.executable, "src/holdings_pipeline/pull_jkp.py",
+            f"--JKP_START={q}", f"--JKP_END={q}",
+        ]],
+        "file_dep": [
+            "src/holdings_pipeline/pull_jkp.py", "src/settings.py",
+            MANUAL_DATA_DIR / "jkp_153_characteristics.csv",
+        ],
+        "targets": raw,
+        "uptodate": [config_changed({"quarter": q})],
+        "clean": [],
+    }
+    yield {
+        "name": "clean",
+        "doc": "Build firm_quarterly and firm_quarterly_jkp_full",
+        "actions": [[sys.executable, "src/holdings_pipeline/clean_jkp.py"]],
+        "file_dep": raw + [
+            "src/holdings_pipeline/clean_jkp.py",
+            "src/holdings_pipeline/pull_jkp.py",
+            "src/settings.py",
+        ],
+        "task_dep": ["jkp:pull"],
+        "targets": [
+            DATA_DIR / "firm_quarterly.pkl",
+            DATA_DIR / "firm_quarterly_jkp_full.pkl",
+            DATA_DIR / "filter_log_firms.pkl",
+        ],
+        "clean": [],
+    }
+
 def task_summary_stats():
     """Generate summary statistics tables"""
     file_dep = ["./src/example_table.py"]

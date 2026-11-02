@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 # settings.py lives in src/, one level up from this folder
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
 import wrds
@@ -38,7 +38,6 @@ from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
 MANUAL_DATA_DIR = Path(config("MANUAL_DATA_DIR"))
-WRDS_USERNAME = config("WRDS_USERNAME")
 JKP_START = config("JKP_START", default="2022-12-31", cast=str)
 JKP_END = config("JKP_END", default="2022-12-31", cast=str)
 
@@ -82,7 +81,7 @@ def load_jkp_full_raw(data_dir=DATA_DIR):
 
 if __name__ == "__main__":
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    db = wrds.Connection(wrds_username=WRDS_USERNAME)
+    db = wrds.Connection(wrds_username=config("WRDS_USERNAME"))
 
     jkp = pull_jkp(db, JKP_START, JKP_END, BASE_COLS + CHAR_COLS)
     jkp.to_pickle(DATA_DIR / "jkp_raw.pkl")
