@@ -38,7 +38,8 @@ Usage (from the project root). The default is the 2022Q4 pilot:
 
 Full history (about 15-20 minutes):
 
-    uv run python src/holdings_pipeline/pull_s34.py --S34_START=2005-03-31 --S34_END=2025-12-31
+    uv run python src/holdings_pipeline/pull_s34.py \\
+        --S34_START=2005-03-31 --S34_END=2025-12-31
 
 CRSP currently ends in 2025-12, so quarters after 2025Q4 cannot be linked.
 """
@@ -257,8 +258,14 @@ def build_s34_quarter(
     hold = hold[["quarter", "investor_id", "permco", "shares", "dollar_holding"]]
     inv = inv[
         [
-            "quarter", "investor_id", "source", "source_id", "name",
-            "investor_type", "n_holdings", "aum",
+            "quarter",
+            "investor_id",
+            "source",
+            "source_id",
+            "name",
+            "investor_type",
+            "n_holdings",
+            "aum",
         ]
     ]
     result = (hold, inv, pd.DataFrame(log), adj)
