@@ -142,6 +142,8 @@ class FakeDB:
         else:
             raise ValueError(f"Unexpected query: {query}")
         df = df.copy()
+        if "msf_v2" in query:
+            df["primaryexch"] = "N"
         for c in date_cols or []:
             df[c] = pd.to_datetime(df[c])
         return df
@@ -165,7 +167,6 @@ def test_holdings_values(result):
     got = hold.set_index(["investor_id", "permco"])["dollar_holding"].to_dict()
     assert got == {
         ("s34_1", 100): 1000.0,  # 100 shares * 10
-        ("s34_1", 200): 250.0,  # historical CUSIP, foreign issuer kept, abs(price)
         ("s34_2", 100): 1000.0,  # 200 shares halved for the split, * 10
         ("s34_2", 400): 80.0,  # 10 * 2 + 20 * 3, two classes summed
     }
@@ -183,6 +184,30 @@ def test_excluded_positions(result):
     hold, _, _, _ = result
     assert 300 not in set(hold["permco"])  # ADR
     assert not set(hold["permco"]) & {500, 510}  # ambiguous CUSIP
+
+
+def test_historical_fallback_is_explicit_sensitivity():
+    hold, _, _, _ = build_s34_quarter(
+        FakeDB(), RDATE, CUSIP_MAP, historical_fallback=True
+    )
+    assert (
+        hold.set_index(["investor_id", "permco"]).loc[("s34_1", 200), "dollar_holding"]
+        == 250
+    )
+
+
+def test_ambiguous_direct_cusip_is_quarantined():
+    db = FakeDB()
+    db.names = pd.concat(
+        [
+            db.names,
+            pd.DataFrame([_common(60, 600, "AAA11111")]),
+        ],
+        ignore_index=True,
+    )
+    hold, _, _, _ = build_s34_quarter(db, RDATE, CUSIP_MAP)
+    assert 100 not in set(hold.permco)
+    assert 600 not in set(hold.permco)
 
 
 def test_split_adjustment_reported(result):
@@ -209,8 +234,14 @@ def test_filter_log(result):
     n = log.set_index("step")["n_obs"]
     assert n["1_download"] == 8
     assert n["2a_match_direct"] == 5
-    assert n["2_match_cusip"] == 6  # adds the historical-CUSIP match
-    later = ["2_match_cusip", "3_common_stock", "4_price", "5_aggregate_permco"]
+    assert n["2_match_cusip"] == 5
+    later = [
+        "2_match_cusip",
+        "2b_aliases_quarantined",
+        "3_common_stock",
+        "4_price",
+        "5_aggregate_permco",
+    ]
     assert n[later].is_monotonic_decreasing
 
 

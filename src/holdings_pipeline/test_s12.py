@@ -12,6 +12,7 @@ import pyarrow.parquet as pq
 
 from holdings_pipeline.clean_s12 import (
     aggregate_firms,
+    common_stock_mask,
     link_by_report_date,
     ownership_exception_details,
     prepare_market,
@@ -19,6 +20,20 @@ from holdings_pipeline.clean_s12 import (
     select_reports,
     value_positions,
 )
+
+
+def test_us_listed_foreign_incorporated_common_share_is_eligible():
+    shares = pd.DataFrame(
+        {
+            "securitytype": ["EQTY", "EQTY"],
+            "securitysubtype": ["COM", "COM"],
+            "sharetype": ["NS", "AD"],
+            "usincflg": ["N", "N"],
+            "issuertype": ["CORP", "CORP"],
+            "primaryexch": ["N", "N"],
+        }
+    )
+    assert common_stock_mask(shares).tolist() == [True, False]
 
 
 def test_snapshot_reads_decimal_and_date_raw_types(tmp_path, monkeypatch):

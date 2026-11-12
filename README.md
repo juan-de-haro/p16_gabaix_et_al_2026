@@ -51,6 +51,7 @@ uv run pytest -q src/holdings_pipeline/test_s34.py src/holdings_pipeline/test_jk
 Outputs in `_data/`:
 
 - `s34/holdings_<quarter>.pkl`, `s34/investors_<quarter>.pkl`, `s34/log_<quarter>.pkl`
+- `s34/security_<quarter>.pkl` (accepted security-level links for reconciliation)
 - `firm_quarterly.pkl`, `firm_quarterly_jkp_full.pkl`, `filter_log_firms.pkl`
 
 Units: S34 `dollar_holding` and `aum` are in USD; JKP `me` and `be` are in
@@ -69,6 +70,66 @@ Two TR data issues found while building S34 also apply to S12:
 S34 includes fund families that are also in S12 (e.g. Vanguard), so S34 and S12
 must not be combined until the overlap rule is agreed. See
 `src/holdings_pipeline/MERGE_NOTES.md`.
+
+### Provisional 2022Q4 holdings integration
+
+The pilot uses a common matching policy: a unique CRSP CUSIP link valid on the
+holdings report date, followed by US-exchange-listed ordinary-share eligibility.
+Foreign incorporation alone is not an exclusion. Ambiguous S34 direct CUSIPs and
+multiple source CUSIPs resolving to one manager/security are quarantined rather
+than arbitrarily selected or summed. S34's historical-CUSIP fallback is **off**
+for the common pilot; set `S34_HISTORICAL_FALLBACK=True` only for a separately
+labelled sensitivity run, then rerun `s34` and the combined task. Do not use
+`S34_SKIP_EXISTING=True` while changing this matching policy.
+
+After configuring local WRDS access and the 2022 date range above, run:
+
+```bash
+uv run doit holdings_provisional
+uv run pytest -q src/holdings_pipeline/test_integrate_holdings.py
+```
+
+This writes `_data/clean/combined/2022Q4/holdings_provisional.parquet` and
+`_output/combined/2022Q4/matching_audit.json` plus a local
+`link_conflicts.parquet` review file. The audit includes source-level date-valid
+match rates, same-date CUSIP link disagreements, source counts, and firm overlap.
+The provisional table is withheld if the two sources disagree on a same-date
+CUSIP link. A shared firm does **not**
+prove that an S12 fund and S34 manager are distinct economic investors. This table
+does not resolve their overlap, apply the final firm universe or 20-by-20 filter,
+or provide final portfolio weights. It is an input to Juan's final-sample stage.
+
+### Provisional 2022Q4 company characteristics
+
+With the same ignored `.env` date range and WRDS access, run:
+
+```bash
+conda run -n finm python -m doit firm_characteristics
+```
+
+The full run order and manual command are at the top of
+`src/holdings_pipeline/build_q4_firm_characteristics.py`. The task writes
+`_data/clean/firm_characteristics/2022Q4/firm_quarterly_provisional.parquet`
+with one row per eligible matched `quarter × permco`. It uses CRSP quarter-end
+market equity as `me` and JKP's Compustat-derived book equity as `be`, both in
+USD millions. The core JKP characteristics are market-equity weighted across
+share classes. `log_be_me` is recomputed using the CRSP value.
+
+Inspect `_output/firm_characteristics/2022Q4/coverage_audit.json` and
+`firm_coverage.parquet` for unmatched CRSP/JKP firms, eligibility exclusions,
+and inconsistent book equity within a `gvkey`. These are provisional inputs for
+the initial valuation benchmark. Final sample filters and winsorization belong
+after Juan's combined sample is agreed; the S12/S34 economic overlap remains
+unresolved.
+
+### Initial relative valuation benchmark
+
+After building the provisional company table, run `python -m doit
+relative_valuation` in the project environment. This evaluates the paper's
+placebo, market-beta and four-characteristic reference models for 2022Q4.
+Results, the shared firm split, and run metadata are saved locally under
+`_output/relative_valuation/2022Q4/`. The [application input notes](design/03_application_inputs.md#initial-relative-valuation-pilot)
+describe the score, pilot assumptions, and optional embedding input.
 
 ### Full project template
 

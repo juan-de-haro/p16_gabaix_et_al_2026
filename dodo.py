@@ -15,6 +15,8 @@ import shutil
 from os import environ
 from pathlib import Path
 
+import pandas as pd
+
 from settings import config
 
 DOIT_CONFIG = {"backend": "sqlite3", "dep_file": "./.doit-db.sqlite"}
@@ -214,10 +216,20 @@ def task_s34():
             s34_dir / f"holdings_{q}.pkl",
             s34_dir / f"investors_{q}.pkl",
             s34_dir / f"log_{q}.pkl",
+            s34_dir / f"security_{q}.pkl",
             DATA_DIR / "crsp_cusip_map.pkl",
             DATA_DIR / "filter_log_s34.pkl",
         ],
-        "uptodate": [config_changed({"quarter": q})],
+        "uptodate": [
+            config_changed(
+                {
+                    "quarter": q,
+                    "historical_fallback": config(
+                        "S34_HISTORICAL_FALLBACK", default="False", cast=str
+                    ),
+                }
+            )
+        ],
         "clean": [],
     }
 
@@ -264,6 +276,118 @@ def task_jkp():
             DATA_DIR / "firm_quarterly_jkp_full.pkl",
             DATA_DIR / "filter_log_firms.pkl",
         ],
+        "clean": [],
+    }
+
+
+def task_holdings_provisional():
+    """Combine date-valid S12/S34 firm holdings without economic deduplication."""
+    from doit.tools import config_changed
+
+    quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
+    qdate = _pipeline_quarter_end()
+    return {
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/integrate_holdings.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
+        "file_dep": [
+            DATA_DIR / "clean" / "s12" / quarter / "holdings_s12.parquet",
+            DATA_DIR / "clean" / "s12" / quarter / "filter_log_s12.parquet",
+            DATA_DIR / "clean" / "s12" / quarter / "holdings_s12_security.parquet",
+            DATA_DIR / "s34" / f"holdings_{qdate}.pkl",
+            DATA_DIR / "s34" / f"log_{qdate}.pkl",
+            DATA_DIR / "s34" / f"security_{qdate}.pkl",
+            "src/holdings_pipeline/integrate_holdings.py",
+        ],
+        "task_dep": ["s12:process", "s34"],
+        "targets": [
+            DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
+            OUTPUT_DIR / "combined" / quarter / "matching_audit.json",
+            OUTPUT_DIR / "combined" / quarter / "link_conflicts.parquet",
+        ],
+        "uptodate": [config_changed({"quarter": quarter})],
+        "clean": [],
+    }
+
+
+def task_firm_characteristics():
+    """Build CRSP-authoritative Q4 characteristics for matched holdings firms."""
+    from doit.tools import config_changed
+
+    from holdings_pipeline.pull_s12 import raw_directory, sample_dates
+
+    start, end = sample_dates()
+    quarter = str(end.to_period("Q"))
+    return {
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/build_q4_firm_characteristics.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
+        "file_dep": [
+            DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
+            DATA_DIR / "jkp_raw.pkl",
+            raw_directory(start, end) / "raw_crsp_monthly.parquet",
+            "src/holdings_pipeline/build_q4_firm_characteristics.py",
+            "src/holdings_pipeline/clean_s12.py",
+        ],
+        "task_dep": ["holdings_provisional", "jkp:pull"],
+        "targets": [
+            DATA_DIR
+            / "clean"
+            / "firm_characteristics"
+            / quarter
+            / "firm_quarterly_provisional.parquet",
+            OUTPUT_DIR / "firm_characteristics" / quarter / "firm_coverage.parquet",
+            OUTPUT_DIR / "firm_characteristics" / quarter / "coverage_audit.json",
+        ],
+        "uptodate": [
+            config_changed(
+                {"quarter": quarter, "start": str(start.date()), "end": str(end.date())}
+            )
+        ],
+        "clean": [],
+    }
+
+
+def task_relative_valuation():
+    """Run provisional single-quarter relative valuation reference models."""
+    from doit.tools import config_changed
+
+    quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
+    report = OUTPUT_DIR / "relative_valuation" / quarter
+    return {
+        "actions": [
+            [
+                sys.executable,
+                "src/valuation/relative_valuation.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
+        "file_dep": [
+            DATA_DIR
+            / "clean"
+            / "firm_characteristics"
+            / quarter
+            / "firm_quarterly_provisional.parquet",
+            "src/valuation/relative_valuation.py",
+        ],
+        "task_dep": ["firm_characteristics"],
+        "targets": [
+            report / "model_metrics.csv",
+            report / "firm_predictions.parquet",
+            report / "run_metadata.json",
+        ],
+        "uptodate": [config_changed({"quarter": quarter, "seed": 32800})],
         "clean": [],
     }
 

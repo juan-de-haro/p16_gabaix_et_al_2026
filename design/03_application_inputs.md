@@ -1,6 +1,6 @@
 # Layer 3: Application Inputs (placeholder)
 
-> **Status: to be designed.** This page lists what layer 3 will contain. Each item gets its own table spec (grain, key, columns) later.
+> **Status:** The provisional relative valuation pilot is implemented; the other layer 3 interfaces remain to be designed.
 
 **Goal:** reshape the layer 2 tables into the exact input each model or benchmark needs. This layer is analysis, not cleaning. It reads only layer 2 tables (and model outputs).
 
@@ -30,6 +30,12 @@
 
 | Benchmark | Built from | Input |
 |---|---|---|
-| Relative valuation (RV) | `firm_quarterly`, `asset_embeddings`, `splits` | TBD |
+| Relative valuation (RV) | `firm_quarterly`, optional `asset_embeddings`, shared firm split | See the Q4 team handoff below |
 | Return comovement (RC) | `firm_monthly`, `asset_embeddings`, `splits` | TBD |
 | Portfolio prediction (MP) | `holdings`, `asset_embeddings`, `investor_embeddings`, `splits` | TBD |
+
+## Initial relative valuation pilot
+
+The method, run steps, input/output contract, embedding interface, Q4 results,
+and unresolved S12/S34 overlap are consolidated in the
+[Q4 team handoff](q4_firm_matching_valuation_handoff.md).

@@ -4,11 +4,12 @@
 
 **Updated:** November 2, 2026
 
-**Status:** Integration checklist. The combined sample has not yet been validated.
+**Status:** A provisional source union is implemented; the final combined sample
+has not yet been validated.
 
 These notes describe how to connect the source-specific pipelines. They do not
 replace the project's [data processing specification](../../design/02_data_processing.md).
-The initial combined run will be provisional and will explicitly flag unresolved
+The initial combined run is provisional and explicitly flags unresolved
 cross-source overlap. No S12/S34 deduplication rule or fund-to-manager mapping
 has been agreed yet.
 
@@ -53,26 +54,28 @@ the overlap rule.
 
 ### Security eligibility
 
-The published S12 pipeline requires US incorporation and legacy share codes
-10/11 at the report date. The S34 pipeline also retains foreign-incorporated
-ordinary shares. US listing and US incorporation are different conditions.
+The S12 pilot now includes legacy share code 12 and no longer requires US
+incorporation; S34 also retains foreign-incorporated ordinary shares. Both
+source pipelines require a US exchange listing. US listing and US
+incorporation are different conditions.
 
-Agree one eligibility rule for both sources, covering ordinary shares, ADRs,
-issuer type, exchange, and eligibility at both the report date and valuation
-date. Apply the same eligible share-class definition when computing company
-market capitalization. Record the effect of the harmonization on each source.
+Before calling this the final research universe, confirm the exact treatment
+of ordinary shares, ADRs, issuer type, exchange, and eligibility at both the
+report date and valuation date. Apply the same eligible share-class definition
+when computing company market capitalization. Record the effect of this
+harmonization on each source.
 
 ### CUSIP matching
 
-S12 currently uses historical names valid on `rdate`. S34 first uses a
-date-valid CUSIP and then attempts historical/header-CUSIP matching to a security
-active on the report date.
+S12 uses historical names valid on `rdate`. The provisional S34 run uses the
+same unique date-valid rule; its historical/header-CUSIP fallback is disabled
+by default and available only as a labelled sensitivity run. The fallback can
+match a security active on the report date to a CUSIP received later.
 
-If the fallback is retained, apply and document it consistently for both
-sources. Require a unique candidate, retain a `link_method` or equivalent audit
-field, and quarantine ambiguous links. Review the S34 direct-match
-`drop_duplicates("cusip")` step: selecting the first row is not a substitute for
-checking whether a CUSIP maps to multiple securities.
+If the fallback is retained for the final sample, apply and document it
+consistently for both sources. Require a unique candidate, retain a
+`link_method` or equivalent audit field, and quarantine ambiguous links. The
+provisional S34 direct match now rejects CUSIPs mapping to multiple securities.
 
 Also check whether multiple source CUSIPs map to the same investor-security
 position. Do not sum these aliases without establishing that they are distinct
@@ -91,9 +94,7 @@ when a filing was publicly observable.
 - Use the same share-basis convention. The S12/S34 implementation uses
   `shares * factor(fdate) / factor(quarter_end)` before quarter-end valuation.
   Missing factors must be reported rather than silently set to one.
-- Use absolute CRSP prices consistently. The published S12 code does this;
-  the S34 code currently multiplies by the price directly and subsequently
-  removes non-positive dollar positions. Check the impact before harmonizing.
+- Use absolute CRSP prices consistently. Both source pipelines do this now.
 
 | Field or source | Current unit | Combined-table convention |
 |---|---|---|

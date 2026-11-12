@@ -181,7 +181,9 @@ ambiguous historical CUSIP mappings, and multiple source CUSIPs mapping to the
 same security are quarantined for inspection instead of being summed.
 
 CUSIP mappings use CRSP name intervals valid on `rdate`. The contribution keeps
-US common stocks on NYSE/AMEX/NASDAQ at both the report date and quarter end.
+US-exchange-listed ordinary shares on NYSE/AMEX/NASDAQ at both the report date
+and quarter end, including eligible foreign-incorporated shares (legacy share
+code 12); this aligns with the provisional S34 matching policy.
 The monthly price and split inputs use CRSP CIZ (`crspm.msf_v2`); historical name
 intervals currently use `crspm.msenames`, which covers the 2022 development sample.
 Recheck historical-name coverage before extending beyond the legacy period.

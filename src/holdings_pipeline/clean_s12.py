@@ -108,7 +108,6 @@ def common_stock_mask(frame):
         frame.securitytype.eq("EQTY")
         & frame.securitysubtype.eq("COM")
         & frame.sharetype.eq("NS")
-        & frame.usincflg.eq("Y")
         & frame.issuertype.isin(["CORP", "ACOR"])
         & frame.primaryexch.isin(["N", "A", "Q"])
     )
@@ -520,7 +519,9 @@ def clean(start=None, end=None, quarter=None):
     save_exception("unmatched_cusip", unmatched)
     save_exception("ambiguous_cusip", ambiguous)
     step("unique_cusip_at_report_date", linked)
-    common = linked.shrcd.isin([10, 11]) & linked.exchcd.isin([1, 2, 3])
+    # Share code 12 covers eligible foreign-incorporated US-listed ordinary
+    # shares; align with S34 and JKP rather than filtering by incorporation.
+    common = linked.shrcd.isin([10, 11, 12]) & linked.exchcd.isin([1, 2, 3])
     save_exception("not_common_stock_at_report", linked.loc[~common])
     linked = linked.loc[common].copy()
     step("us_common_stock_at_report", linked)
