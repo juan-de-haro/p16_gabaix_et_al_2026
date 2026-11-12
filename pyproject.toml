@@ -48,6 +48,7 @@ dependencies = [
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::Warning"]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 88
