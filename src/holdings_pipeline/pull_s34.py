@@ -208,9 +208,7 @@ def build_s34_quarter(
     )
     r = msf[msf["yyyymm"] == ym_r][
         ["permno", "mthprc", "mthcumfacshr", "primaryexch"]
-    ].rename(
-        columns={"mthcumfacshr": "fac_r"}
-    )
+    ].rename(columns={"mthcumfacshr": "fac_r"})
     f = msf[["permno", "yyyymm", "mthcumfacshr"]].rename(
         columns={"yyyymm": "ym_f", "mthcumfacshr": "fac_f"}
     )
@@ -226,8 +224,16 @@ def build_s34_quarter(
     add("4_price", h)
 
     security = h[
-        ["mgrno", "fdate", "cusip", "permno", "permco", "shares_adj",
-         "dollar_holding", "link_method"]
+        [
+            "mgrno",
+            "fdate",
+            "cusip",
+            "permno",
+            "permco",
+            "shares_adj",
+            "dollar_holding",
+            "link_method",
+        ]
     ].copy()
     security["quarter"] = rd
     security["rdate"] = rd
@@ -273,7 +279,11 @@ def build_s34_quarter(
 
 
 def pull_s34(
-    db, quarters, cusip_map, out_dir=S34_DIR, skip_existing=False,
+    db,
+    quarters,
+    cusip_map,
+    out_dir=S34_DIR,
+    skip_existing=False,
     historical_fallback=False,
 ):
     """Build and save S34 files for each quarter."""
@@ -284,7 +294,10 @@ def pull_s34(
         if skip_existing and path_h.exists():
             continue
         hold_q, inv_q, log_q, adj_q, security_q = build_s34_quarter(
-            db, q, cusip_map, historical_fallback=historical_fallback,
+            db,
+            q,
+            cusip_map,
+            historical_fallback=historical_fallback,
             include_security=True,
         )
         hold_q.to_pickle(path_h)
@@ -315,7 +328,10 @@ if __name__ == "__main__":
 
     quarters = list_quarters(db, S34_START, S34_END)
     pull_s34(
-        db, quarters, cusip_map, skip_existing=S34_SKIP_EXISTING,
+        db,
+        quarters,
+        cusip_map,
+        skip_existing=S34_SKIP_EXISTING,
         historical_fallback=S34_HISTORICAL_FALLBACK,
     )
 

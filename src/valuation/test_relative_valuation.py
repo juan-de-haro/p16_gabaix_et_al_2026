@@ -16,12 +16,18 @@ def sample_firms(n=60):
     rng = np.random.default_rng(91)
     log_be = rng.normal(5, 1, n)
     signal = rng.normal(size=n)
-    return pd.DataFrame({
-        "quarter": pd.Timestamp("2022-12-31"), "permco": np.arange(n) + 1,
-        "be": np.exp(log_be), "me": np.exp(0.8 * log_be + 0.5 * signal),
-        "beta_60m": signal, "at_gr1": rng.normal(size=n),
-        "gp_at": rng.normal(size=n), "div_at": rng.normal(size=n),
-    })
+    return pd.DataFrame(
+        {
+            "quarter": pd.Timestamp("2022-12-31"),
+            "permco": np.arange(n) + 1,
+            "be": np.exp(log_be),
+            "me": np.exp(0.8 * log_be + 0.5 * signal),
+            "beta_60m": signal,
+            "at_gr1": rng.normal(size=n),
+            "gp_at": rng.normal(size=n),
+            "div_at": rng.normal(size=n),
+        }
+    )
 
 
 def test_shared_split_and_paper_variance_score():
@@ -29,15 +35,24 @@ def test_shared_split_and_paper_variance_score():
     embeddings = firms[["quarter", "permco"]].copy()
     embeddings["emb_0"] = firms.beta_60m
     metrics, predictions, metadata = evaluate(firms, embeddings=embeddings)
-    assert set(metrics.model) == {"placebo_4", "beta", "characteristics_4",
-                                  "embeddings", "embeddings_plus_characteristics"}
+    assert set(metrics.model) == {
+        "placebo_4",
+        "beta",
+        "characteristics_4",
+        "embeddings",
+        "embeddings_plus_characteristics",
+    }
     test = predictions.loc[predictions.split.eq("test")]
     assert len(test) == 12
     assert len(predictions.loc[predictions.split.eq("train")]) == 48
     assert predictions.loc[predictions.split.eq("train"), "beta"].isna().all()
     assert test[list(metrics.model)].notna().all().all()
-    expected = 1 - np.var(test.valuation_residual - test.beta) / np.var(test.valuation_residual)
-    assert metrics.set_index("model").loc["beta", "paper_rv_variance_ratio"] == pytest.approx(expected)
+    expected = 1 - np.var(test.valuation_residual - test.beta) / np.var(
+        test.valuation_residual
+    )
+    assert metrics.set_index("model").loc[
+        "beta", "paper_rv_variance_ratio"
+    ] == pytest.approx(expected)
     assert metadata["embedding_columns"] == ["emb_0"]
 
 

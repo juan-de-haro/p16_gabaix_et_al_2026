@@ -35,7 +35,6 @@ from holdings_pipeline.clean_s12 import common_stock_mask
 from holdings_pipeline.pull_s12 import raw_directory, sample_dates
 from settings import config
 
-
 CORE = ["at_gr1", "gp_at", "ret_12_1", "div_at", "beta_60m"]
 SIZE_ORDER = {"nano": 0, "micro": 1, "small": 2, "large": 3, "mega": 4}
 KEY = ["quarter", "permco"]
@@ -52,9 +51,18 @@ def _quarter_rows(frame, date_column, quarter, align_month_end=False):
 
 def crsp_firm_equity(monthly, quarter):
     """Sum all eligible CRSP share classes at quarter end; CRSP shrout is 1,000s."""
-    required = {"permno", "permco", "mthcaldt", "mthprc", "shrout",
-                "securitytype", "securitysubtype", "sharetype", "issuertype",
-                "primaryexch"}
+    required = {
+        "permno",
+        "permco",
+        "mthcaldt",
+        "mthprc",
+        "shrout",
+        "securitytype",
+        "securitysubtype",
+        "sharetype",
+        "issuertype",
+        "primaryexch",
+    }
     if required - set(monthly):
         raise ValueError(f"CRSP missing columns: {sorted(required - set(monthly))}")
     rows, qdate = _quarter_rows(monthly, "mthcaldt", quarter, align_month_end=True)
@@ -64,8 +72,9 @@ def crsp_firm_equity(monthly, quarter):
     rows["mthprc"] = pd.to_numeric(rows.mthprc, errors="coerce")
     rows["shrout"] = pd.to_numeric(rows.shrout, errors="coerce")
     rows["security_me_millions"] = rows.mthprc.abs() * rows.shrout / 1000
-    rows = rows.loc[rows.security_me_millions.gt(0)
-                    & np.isfinite(rows.security_me_millions)].copy()
+    rows = rows.loc[
+        rows.security_me_millions.gt(0) & np.isfinite(rows.security_me_millions)
+    ].copy()
     out = rows.groupby("permco", as_index=False).agg(
         me=("security_me_millions", "sum"),
         n_crsp_share_classes=("permno", "nunique"),
@@ -77,8 +86,16 @@ def crsp_firm_equity(monthly, quarter):
 
 def jkp_firm_characteristics(jkp, quarter):
     """Aggregate JKP security rows; quarantine inconsistent gvkey book equity."""
-    required = {"permno", "permco", "gvkey", "eom", "size_grp", "me",
-                "book_equity", *CORE}
+    required = {
+        "permno",
+        "permco",
+        "gvkey",
+        "eom",
+        "size_grp",
+        "me",
+        "book_equity",
+        *CORE,
+    }
     if required - set(jkp):
         raise ValueError(f"JKP missing columns: {sorted(required - set(jkp))}")
     rows, qdate = _quarter_rows(jkp, "eom", quarter)
@@ -90,9 +107,9 @@ def jkp_firm_characteristics(jkp, quarter):
     keys = ["permco", "gvkey"]
     book = rows.dropna(subset=["gvkey"]).groupby(keys, dropna=False).book_equity
     book_stats = book.agg(["min", "max", "first", "count"]).reset_index()
-    inconsistent = (book_stats["count"].gt(1)
-                    & ~np.isclose(book_stats["min"], book_stats["max"],
-                                  rtol=1e-8, atol=1e-8, equal_nan=True))
+    inconsistent = book_stats["count"].gt(1) & ~np.isclose(
+        book_stats["min"], book_stats["max"], rtol=1e-8, atol=1e-8, equal_nan=True
+    )
     bad_firms = set(book_stats.loc[inconsistent, "permco"])
     missing_gvkey = set(rows.loc[rows.gvkey.isna(), "permco"])
     book_firm = book_stats.groupby("permco")["first"].sum(min_count=1).rename("be")
@@ -124,27 +141,39 @@ def build_firm_table(holdings, jkp, monthly, quarter="2022Q4"):
     qdate = period.end_time.normalize()
     required = {"quarter", "permco", "source", "sample_status"}
     if required - set(holdings):
-        raise ValueError(f"Holdings missing columns: {sorted(required - set(holdings))}")
+        raise ValueError(
+            f"Holdings missing columns: {sorted(required - set(holdings))}"
+        )
     if holdings.empty or not pd.to_datetime(holdings.quarter).eq(qdate).all():
         raise ValueError(f"Expected nonempty {quarter} holdings only")
     if set(holdings.sample_status) != {"provisional_overlap_unresolved"}:
         raise ValueError("Expected the source-union provisional holdings artifact")
-    firms = holdings.groupby("permco").source.agg(
-        lambda s: ",".join(sorted(set(s)))
-    ).rename("holdings_sources").reset_index()
+    firms = (
+        holdings.groupby("permco")
+        .source.agg(lambda s: ",".join(sorted(set(s))))
+        .rename("holdings_sources")
+        .reset_index()
+    )
     firms["permco"] = firms.permco.astype("int64")
     firms["quarter"] = qdate
-    coverage = firms.merge(crsp_firm_equity(monthly, period), on=KEY,
-                           how="left", validate="one_to_one")
-    coverage = coverage.merge(jkp_firm_characteristics(jkp, period), on=KEY,
-                              how="left", validate="one_to_one")
+    coverage = firms.merge(
+        crsp_firm_equity(monthly, period), on=KEY, how="left", validate="one_to_one"
+    )
+    coverage = coverage.merge(
+        jkp_firm_characteristics(jkp, period), on=KEY, how="left", validate="one_to_one"
+    )
     coverage["missing_crsp_me"] = coverage.me.isna() | coverage.me.le(0)
     coverage["missing_jkp_firm"] = coverage.n_jkp_securities.isna()
     coverage["ineligible_size"] = ~coverage.size_grp.isin(["small", "large", "mega"])
     coverage["nonpositive_or_missing_be"] = coverage.be.isna() | coverage.be.le(0)
     coverage["missing_core_characteristic"] = coverage[CORE].isna().any(axis=1)
-    flags = ["missing_crsp_me", "missing_jkp_firm", "ineligible_size",
-             "nonpositive_or_missing_be", "missing_core_characteristic"]
+    flags = [
+        "missing_crsp_me",
+        "missing_jkp_firm",
+        "ineligible_size",
+        "nonpositive_or_missing_be",
+        "missing_core_characteristic",
+    ]
     coverage["eligible"] = ~coverage[flags].any(axis=1)
     coverage["log_me"] = np.log(coverage.me.where(coverage.me.gt(0)))
     coverage["log_be"] = np.log(coverage.be.where(coverage.be.gt(0)))
@@ -152,13 +181,29 @@ def build_firm_table(holdings, jkp, monthly, quarter="2022Q4"):
     coverage["crsp_jkp_me_ratio"] = coverage.me / coverage.jkp_me.where(
         coverage.jkp_me.gt(0)
     )
-    cols = KEY + ["me", "log_me", "be", "log_be", "log_be_me", *CORE,
-                  "size_grp", "n_crsp_share_classes", "n_jkp_securities",
-                  "jkp_me", "crsp_jkp_me_ratio", "holdings_sources"]
-    table = coverage.loc[coverage.eligible, cols].sort_values(KEY).reset_index(drop=True)
-    if table.duplicated(KEY).any() or not np.isfinite(
-        table[["me", "be", "log_be_me", *CORE]].to_numpy(dtype=float)
-    ).all():
+    cols = KEY + [
+        "me",
+        "log_me",
+        "be",
+        "log_be",
+        "log_be_me",
+        *CORE,
+        "size_grp",
+        "n_crsp_share_classes",
+        "n_jkp_securities",
+        "jkp_me",
+        "crsp_jkp_me_ratio",
+        "holdings_sources",
+    ]
+    table = (
+        coverage.loc[coverage.eligible, cols].sort_values(KEY).reset_index(drop=True)
+    )
+    if (
+        table.duplicated(KEY).any()
+        or not np.isfinite(
+            table[["me", "be", "log_be_me", *CORE]].to_numpy(dtype=float)
+        ).all()
+    ):
         raise ValueError("Firm table has duplicate keys or nonfinite required values")
     if not set(table.permco).issubset(set(holdings.permco)):
         raise ValueError("Firm table is not a subset of matched holdings firms")
@@ -169,14 +214,21 @@ def build_firm_table(holdings, jkp, monthly, quarter="2022Q4"):
         "holdings_firms": int(len(firms)),
         "eligible_firms": int(len(table)),
         "excluded_firms": int(len(firms) - len(table)),
-        "exclusion_flags_nonexclusive": {flag: int(coverage[flag].sum()) for flag in flags},
-        "book_equity_conflict_firms": int(coverage.book_equity_conflict.fillna(False).sum()),
+        "exclusion_flags_nonexclusive": {
+            flag: int(coverage[flag].sum()) for flag in flags
+        },
+        "book_equity_conflict_firms": int(
+            coverage.book_equity_conflict.fillna(False).sum()
+        ),
         "missing_gvkey_firms": int(coverage.missing_gvkey.fillna(False).sum()),
         "me_unit": "USD millions; CRSP quarter-end price x shrout",
         "be_unit": "USD millions; JKP Compustat-derived book_equity",
         "winsorized": False,
         "final_sample": False,
-        "note": "Firm coverage is provisional; S12/S34 economic overlap and final joint filters remain unresolved.",
+        "note": (
+            "Firm coverage is provisional; S12/S34 economic overlap "
+            "and final joint filters remain unresolved."
+        ),
     }
     return table, coverage, audit
 
@@ -188,13 +240,19 @@ def run(quarter="2022Q4", data_dir=None, output_dir=None, start=None, end=None):
     period = pd.Period(quarter, freq="Q")
     raw_crsp = raw_directory(start, end, data_dir) / "raw_crsp_monthly.parquet"
     paths = {
-        "holdings": data_dir / "clean" / "combined" / str(period) / "holdings_provisional.parquet",
+        "holdings": data_dir
+        / "clean"
+        / "combined"
+        / str(period)
+        / "holdings_provisional.parquet",
         "jkp": data_dir / "jkp_raw.pkl",
         "crsp": raw_crsp,
     }
     missing = {name: str(path) for name, path in paths.items() if not path.exists()}
     if missing:
-        raise FileNotFoundError(f"Missing Q4 inputs: {missing}. Run steps 1-2 in the module header.")
+        raise FileNotFoundError(
+            f"Missing Q4 inputs: {missing}. Run steps 1-2 in the module header."
+        )
     holdings = pd.read_parquet(paths["holdings"])
     jkp = pd.read_pickle(paths["jkp"])
     monthly = pd.read_parquet(paths["crsp"])
@@ -205,7 +263,9 @@ def run(quarter="2022Q4", data_dir=None, output_dir=None, start=None, end=None):
     report.mkdir(parents=True, exist_ok=True)
     table.to_parquet(target / "firm_quarterly_provisional.parquet", index=False)
     coverage.to_parquet(report / "firm_coverage.parquet", index=False)
-    (report / "coverage_audit.json").write_text(json.dumps(audit, indent=2), encoding="utf-8")
+    (report / "coverage_audit.json").write_text(
+        json.dumps(audit, indent=2), encoding="utf-8"
+    )
     return audit
 
 

@@ -38,13 +38,14 @@ from sklearn.preprocessing import StandardScaler
 
 from settings import config
 
-
 CHARS = ["beta_60m", "at_gr1", "gp_at", "div_at"]
 KEY = ["quarter", "permco"]
 ALPHAS = np.logspace(-4, 4, 25)
 
 
-def prepare_inputs(firms, quarter="2022Q4", embeddings=None, allow_partial_embeddings=False):
+def prepare_inputs(
+    firms, quarter="2022Q4", embeddings=None, allow_partial_embeddings=False
+):
     """Validate the firm universe and apply the paper's cross-sectional clips."""
     qdate = pd.Period(quarter, freq="Q").end_time.normalize()
     required = KEY + ["me", "be"] + CHARS
@@ -66,9 +67,13 @@ def prepare_inputs(firms, quarter="2022Q4", embeddings=None, allow_partial_embed
         raise ValueError("Market and book equity must be positive")
     frame = frame.sort_values(KEY).reset_index(drop=True)
     embedding_cols = []
-    coverage = {"n_firms_before_embedding_match": len(frame),
-                "n_firms_excluded": 0, "excluded_permcos": [],
-                "n_extra_embedding_firms": 0, "partial_coverage_allowed": False}
+    coverage = {
+        "n_firms_before_embedding_match": len(frame),
+        "n_firms_excluded": 0,
+        "excluded_permcos": [],
+        "n_extra_embedding_firms": 0,
+        "partial_coverage_allowed": False,
+    }
     if embeddings is not None:
         embedding_cols = sorted(c for c in embeddings if c.startswith("emb_"))
         if not embedding_cols or set(KEY) - set(embeddings):
@@ -85,11 +90,19 @@ def prepare_inputs(firms, quarter="2022Q4", embeddings=None, allow_partial_embed
         frame = frame.merge(em, on=KEY, how="left", validate="one_to_one")
         valid = np.isfinite(frame[embedding_cols].to_numpy(dtype=float)).all(axis=1)
         excluded = frame.loc[~valid, "permco"].astype(int).tolist()
-        coverage.update({"n_firms_excluded": len(excluded), "excluded_permcos": excluded,
-                         "partial_coverage_allowed": bool(allow_partial_embeddings)})
+        coverage.update(
+            {
+                "n_firms_excluded": len(excluded),
+                "excluded_permcos": excluded,
+                "partial_coverage_allowed": bool(allow_partial_embeddings),
+            }
+        )
         if excluded and not allow_partial_embeddings:
-            raise ValueError("Embeddings must be finite and cover every firm in the comparison universe; "
-                             "use --allow-partial-embeddings to audit and use the common sample")
+            raise ValueError(
+                "Embeddings must be finite and cover every firm in the comparison "
+                "universe; "
+                "use --allow-partial-embeddings to audit and use the common sample"
+            )
         frame = frame.loc[valid].reset_index(drop=True)
         if frame.empty:
             raise ValueError("No firms remain in the embedding comparison sample")
@@ -106,17 +119,22 @@ def prepare_inputs(firms, quarter="2022Q4", embeddings=None, allow_partial_embed
     return frame, embedding_cols, clip_bounds, coverage
 
 
-def evaluate(firms, quarter="2022Q4", embeddings=None, seed=32800,
-             allow_partial_embeddings=False):
+def evaluate(
+    firms, quarter="2022Q4", embeddings=None, seed=32800, allow_partial_embeddings=False
+):
     """Return fixed split, predictions, model scores, and reproducibility metadata."""
     frame, emb_cols, clip_bounds, coverage = prepare_inputs(
         firms, quarter, embeddings, allow_partial_embeddings
     )
     if len(frame) < 20:
-        raise ValueError("At least 20 firms are required for an 80/20 split and 10-fold CV")
+        raise ValueError(
+            "At least 20 firms are required for an 80/20 split and 10-fold CV"
+        )
     stage1 = LinearRegression().fit(frame[["log_be"]], frame.log_me)
     frame["valuation_residual"] = frame.log_me - stage1.predict(frame[["log_be"]])
-    train, test = train_test_split(np.arange(len(frame)), test_size=0.2, random_state=seed)
+    train, test = train_test_split(
+        np.arange(len(frame)), test_size=0.2, random_state=seed
+    )
     if len(train) < 10:
         raise ValueError("Training sample is too small for 10-fold CV")
     frame["split"] = "train"
@@ -124,7 +142,11 @@ def evaluate(firms, quarter="2022Q4", embeddings=None, seed=32800,
     rng = np.random.default_rng(seed)
     placebo_cols = [f"placebo_{i}" for i in range(4)]
     frame[placebo_cols] = rng.standard_normal((len(frame), len(placebo_cols)))
-    models = {"placebo_4": placebo_cols, "beta": ["beta_60m"], "characteristics_4": CHARS}
+    models = {
+        "placebo_4": placebo_cols,
+        "beta": ["beta_60m"],
+        "characteristics_4": CHARS,
+    }
     if emb_cols:
         models["embeddings"] = emb_cols
         models["embeddings_plus_characteristics"] = emb_cols + CHARS
@@ -135,8 +157,11 @@ def evaluate(firms, quarter="2022Q4", embeddings=None, seed=32800,
     for name, features in models.items():
         model = GridSearchCV(
             Pipeline([("scale", StandardScaler()), ("ridge", Ridge())]),
-            {"ridge__alpha": ALPHAS}, scoring="neg_mean_squared_error", cv=cv,
-            refit=True, error_score="raise",
+            {"ridge__alpha": ALPHAS},
+            scoring="neg_mean_squared_error",
+            cv=cv,
+            refit=True,
+            error_score="raise",
         )
         model.fit(frame.loc[train, features], y.iloc[train])
         pred = model.predict(frame.loc[test, features])
@@ -147,75 +172,133 @@ def evaluate(firms, quarter="2022Q4", embeddings=None, seed=32800,
         paper_rv = 1 - np.var(observed - pred) / variance
         predictions[name] = np.nan
         predictions.loc[test, name] = pred
-        results.append({"model": name, "n_features": len(features),
-                        "n_train": len(train), "n_test": len(test),
-                        "ridge_alpha": float(model.best_params_["ridge__alpha"]),
-                        "paper_rv_variance_ratio": float(paper_rv),
-                        "test_r2_sse": float(r2_score(observed, pred)),
-                        "cv_mse": float(-model.best_score_)})
+        results.append(
+            {
+                "model": name,
+                "n_features": len(features),
+                "n_train": len(train),
+                "n_test": len(test),
+                "ridge_alpha": float(model.best_params_["ridge__alpha"]),
+                "paper_rv_variance_ratio": float(paper_rv),
+                "test_r2_sse": float(r2_score(observed, pred)),
+                "cv_mse": float(-model.best_score_),
+            }
+        )
     metrics = pd.DataFrame(results)
     meta = {
-        "quarter": str(pd.Period(quarter, freq="Q")), "n_firms": len(frame),
-        "seed": seed, "train_fraction": 0.8, "cv_folds": 10,
+        "quarter": str(pd.Period(quarter, freq="Q")),
+        "n_firms": len(frame),
+        "seed": seed,
+        "train_fraction": 0.8,
+        "cv_folds": 10,
         "embedding_coverage": coverage,
-        "alpha_grid": ALPHAS.tolist(), "embedding_columns": emb_cols,
+        "alpha_grid": ALPHAS.tolist(),
+        "embedding_columns": emb_cols,
         "stage1_log_be_slope": float(stage1.coef_[0]),
-        "stage1_intercept": float(stage1.intercept_), "winsorization": clip_bounds,
+        "stage1_intercept": float(stage1.intercept_),
+        "winsorization": clip_bounds,
         "stage1_sample": "all firms in quarter, before train/test split",
-        "preprocessing": "characteristics clipped on full provisional cross-section; scaling fitted within CV training folds",
+        "preprocessing": (
+            "characteristics clipped on full provisional cross-section; "
+            "scaling fitted within CV training folds"
+        ),
         "score": "1 - variance(test residual - prediction) / variance(test residual)",
-        "status": "provisional_overlap_unresolved; no final joint sample; no temporal out-of-sample test",
+        "status": (
+            "provisional_overlap_unresolved; no final joint sample; "
+            "no temporal out-of-sample test"
+        ),
         "paper": "https://finm-32800.github.io/_downloads/2bd761eb9fb9d2d6a30e958f837ff449/GabaixKoijenRichmondYogo2026AssetAndInvestorEmbeddings.pdf",
     }
     return metrics, predictions, meta
 
 
-def run(quarter="2022Q4", embedding_path=None, seed=32800, data_dir=None,
-        output_dir=None, firm_table=None, allow_partial_embeddings=False):
+def run(
+    quarter="2022Q4",
+    embedding_path=None,
+    seed=32800,
+    data_dir=None,
+    output_dir=None,
+    firm_table=None,
+    allow_partial_embeddings=False,
+):
     data_dir = Path(data_dir or config("DATA_DIR"))
     output_dir = Path(output_dir or config("OUTPUT_DIR"))
     period = str(pd.Period(quarter, freq="Q"))
-    path = (Path(firm_table) if firm_table else data_dir / "clean" / "firm_characteristics"
-            / period / "firm_quarterly_provisional.parquet")
+    path = (
+        Path(firm_table)
+        if firm_table
+        else data_dir
+        / "clean"
+        / "firm_characteristics"
+        / period
+        / "firm_quarterly_provisional.parquet"
+    )
     firms = pd.read_parquet(path)
     embeddings = pd.read_parquet(embedding_path) if embedding_path else None
     if allow_partial_embeddings and embeddings is None:
         raise ValueError("--allow-partial-embeddings requires --embeddings")
-    metrics, predictions, meta = evaluate(firms, period, embeddings, seed,
-                                           allow_partial_embeddings)
+    metrics, predictions, meta = evaluate(
+        firms, period, embeddings, seed, allow_partial_embeddings
+    )
     dest = output_dir / "relative_valuation" / period
     meta["firm_input_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
     meta["firm_input"] = str(path.resolve())
-    meta["sample_source"] = "external_unverified" if firm_table else "provisional_holdings_union"
+    meta["sample_source"] = (
+        "external_unverified" if firm_table else "provisional_holdings_union"
+    )
     if firm_table:
-        meta["status"] = "external firm sample supplied; overlap and final-sample status unverified; no temporal out-of-sample test"
+        meta["status"] = (
+            "external firm sample supplied; overlap and final-sample status "
+            "unverified; no temporal out-of-sample test"
+        )
     if embedding_path:
         embedding_path = Path(embedding_path)
         digest = hashlib.sha256(embedding_path.read_bytes()).hexdigest()
         meta["embedding_input"] = str(embedding_path.resolve())
         meta["embedding_input_sha256"] = digest
     if embedding_path or firm_table or seed != 32800:
-        identity = json.dumps({"firm_sha256": meta["firm_input_sha256"],
-                               "embedding_sha256": meta.get("embedding_input_sha256"),
-                               "seed": seed, "allow_partial_embeddings": allow_partial_embeddings},
-                              sort_keys=True).encode()
+        identity = json.dumps(
+            {
+                "firm_sha256": meta["firm_input_sha256"],
+                "embedding_sha256": meta.get("embedding_input_sha256"),
+                "seed": seed,
+                "allow_partial_embeddings": allow_partial_embeddings,
+            },
+            sort_keys=True,
+        ).encode()
         dest = dest / f"comparison_{hashlib.sha256(identity).hexdigest()[:12]}"
     meta["output_directory"] = str(dest.resolve())
     dest.mkdir(parents=True, exist_ok=True)
     metrics.to_csv(dest / "model_metrics.csv", index=False)
     predictions.to_parquet(dest / "firm_predictions.parquet", index=False)
-    (dest / "run_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    (dest / "run_metadata.json").write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
     return metrics
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quarter", default="2022Q4")
-    parser.add_argument("--embeddings", help="Parquet with quarter, permco and emb_* columns")
-    parser.add_argument("--firm-table", help="Alternative quarter x permco characteristics Parquet")
-    parser.add_argument("--allow-partial-embeddings", action="store_true",
-                        help="Explicitly evaluate all models on the audited common firm sample")
+    parser.add_argument(
+        "--embeddings", help="Parquet with quarter, permco and emb_* columns"
+    )
+    parser.add_argument(
+        "--firm-table", help="Alternative quarter x permco characteristics Parquet"
+    )
+    parser.add_argument(
+        "--allow-partial-embeddings",
+        action="store_true",
+        help="Explicitly evaluate all models on the audited common firm sample",
+    )
     parser.add_argument("--seed", type=int, default=32800)
     args = parser.parse_args()
-    print(run(args.quarter, args.embeddings, args.seed, firm_table=args.firm_table,
-              allow_partial_embeddings=args.allow_partial_embeddings).to_string(index=False))
+    print(
+        run(
+            args.quarter,
+            args.embeddings,
+            args.seed,
+            firm_table=args.firm_table,
+            allow_partial_embeddings=args.allow_partial_embeddings,
+        ).to_string(index=False)
+    )

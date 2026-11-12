@@ -23,14 +23,16 @@ from holdings_pipeline.clean_s12 import (
 
 
 def test_us_listed_foreign_incorporated_common_share_is_eligible():
-    shares = pd.DataFrame({
-        "securitytype": ["EQTY", "EQTY"],
-        "securitysubtype": ["COM", "COM"],
-        "sharetype": ["NS", "AD"],
-        "usincflg": ["N", "N"],
-        "issuertype": ["CORP", "CORP"],
-        "primaryexch": ["N", "N"],
-    })
+    shares = pd.DataFrame(
+        {
+            "securitytype": ["EQTY", "EQTY"],
+            "securitysubtype": ["COM", "COM"],
+            "sharetype": ["NS", "AD"],
+            "usincflg": ["N", "N"],
+            "issuertype": ["CORP", "CORP"],
+            "primaryexch": ["N", "N"],
+        }
+    )
     assert common_stock_mask(shares).tolist() == [True, False]
 
 

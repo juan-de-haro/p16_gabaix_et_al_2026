@@ -16,13 +16,15 @@ from holdings_pipeline.integrate_holdings import (
 
 
 def _source(source, investor, firms):
-    return pd.DataFrame({
-        "quarter": pd.Timestamp("2022-12-31"),
-        "investor_id": [f"{source}_{investor}"] * len(firms),
-        "permco": firms,
-        "shares": [10.0] * len(firms),
-        "dollar_holding": [100.0] * len(firms),
-    })
+    return pd.DataFrame(
+        {
+            "quarter": pd.Timestamp("2022-12-31"),
+            "investor_id": [f"{source}_{investor}"] * len(firms),
+            "permco": firms,
+            "shares": [10.0] * len(firms),
+            "dollar_holding": [100.0] * len(firms),
+        }
+    )
 
 
 def test_shared_company_does_not_imply_duplicate_investor():
@@ -48,18 +50,22 @@ def test_duplicate_or_wrong_quarter_fails_before_combining():
 
 
 def test_same_date_cusip_conflict_is_detected():
-    s12 = pd.DataFrame({
-        "rdate": ["2022-12-31", "2022-11-30"],
-        "cusip": ["AAA11111", "BBB22222"],
-        "permno": [10, 20],
-        "permco": [100, 200],
-    })
-    s34 = pd.DataFrame({
-        "rdate": ["2022-12-31", "2022-12-31"],
-        "cusip": ["AAA11111", "BBB22222"],
-        "permno": [11, 30],
-        "permco": [101, 300],
-    })
+    s12 = pd.DataFrame(
+        {
+            "rdate": ["2022-12-31", "2022-11-30"],
+            "cusip": ["AAA11111", "BBB22222"],
+            "permno": [10, 20],
+            "permco": [100, 200],
+        }
+    )
+    s34 = pd.DataFrame(
+        {
+            "rdate": ["2022-12-31", "2022-12-31"],
+            "cusip": ["AAA11111", "BBB22222"],
+            "permno": [11, 30],
+            "permco": [101, 300],
+        }
+    )
     checked, conflicts = compare_security_links(s12, s34)
     assert len(checked) == 1  # November and December links are not conflated.
     assert conflicts[["permno_s12", "permno_s34"]].iloc[0].tolist() == [10, 11]
@@ -74,19 +80,28 @@ def test_pilot_reads_both_source_contracts_and_writes_audit(tmp_path):
     s34_dir.mkdir(parents=True)
     _source("s12", 1, [10]).to_parquet(s12_dir / "holdings_s12.parquet")
     _source("s34", 2, [10]).to_pickle(s34_dir / "holdings_2022-12-31.pkl")
-    security = pd.DataFrame({
-        "rdate": [pd.Timestamp("2022-12-31")],
-        "cusip": ["AAA11111"], "permno": [100], "permco": [10],
-    })
+    security = pd.DataFrame(
+        {
+            "rdate": [pd.Timestamp("2022-12-31")],
+            "cusip": ["AAA11111"],
+            "permno": [100],
+            "permco": [10],
+        }
+    )
     security.to_parquet(s12_dir / "holdings_s12_security.parquet")
     security.to_pickle(s34_dir / "security_2022-12-31.pkl")
-    pd.DataFrame({
-        "step": ["positive_shares_valid_cusip", "unique_cusip_at_report_date"],
-        "n_obs": [2, 1],
-    }).to_parquet(s12_dir / "filter_log_s12.parquet")
-    pd.DataFrame({
-        "step": ["1_download", "2a_match_direct"], "n_obs": [3, 1],
-    }).to_pickle(s34_dir / "log_2022-12-31.pkl")
+    pd.DataFrame(
+        {
+            "step": ["positive_shares_valid_cusip", "unique_cusip_at_report_date"],
+            "n_obs": [2, 1],
+        }
+    ).to_parquet(s12_dir / "filter_log_s12.parquet")
+    pd.DataFrame(
+        {
+            "step": ["1_download", "2a_match_direct"],
+            "n_obs": [3, 1],
+        }
+    ).to_pickle(s34_dir / "log_2022-12-31.pkl")
 
     audit = build_pilot("2022Q4", data, output)
     combined = pd.read_parquet(

@@ -220,12 +220,16 @@ def task_s34():
             DATA_DIR / "crsp_cusip_map.pkl",
             DATA_DIR / "filter_log_s34.pkl",
         ],
-        "uptodate": [config_changed({
-            "quarter": q,
-            "historical_fallback": config(
-                "S34_HISTORICAL_FALLBACK", default="False", cast=str
-            ),
-        })],
+        "uptodate": [
+            config_changed(
+                {
+                    "quarter": q,
+                    "historical_fallback": config(
+                        "S34_HISTORICAL_FALLBACK", default="False", cast=str
+                    ),
+                }
+            )
+        ],
         "clean": [],
     }
 
@@ -283,10 +287,14 @@ def task_holdings_provisional():
     quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
     qdate = _pipeline_quarter_end()
     return {
-        "actions": [[
-            sys.executable, "src/holdings_pipeline/integrate_holdings.py",
-            "--quarter", quarter,
-        ]],
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/integrate_holdings.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
         "file_dep": [
             DATA_DIR / "clean" / "s12" / quarter / "holdings_s12.parquet",
             DATA_DIR / "clean" / "s12" / quarter / "filter_log_s12.parquet",
@@ -316,11 +324,14 @@ def task_firm_characteristics():
     start, end = sample_dates()
     quarter = str(end.to_period("Q"))
     return {
-        "actions": [[
-            sys.executable,
-            "src/holdings_pipeline/build_q4_firm_characteristics.py",
-            "--quarter", quarter,
-        ]],
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/build_q4_firm_characteristics.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
         "file_dep": [
             DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
             DATA_DIR / "jkp_raw.pkl",
@@ -330,13 +341,22 @@ def task_firm_characteristics():
         ],
         "task_dep": ["holdings_provisional", "jkp:pull"],
         "targets": [
-            DATA_DIR / "clean" / "firm_characteristics" / quarter / "firm_quarterly_provisional.parquet",
+            DATA_DIR
+            / "clean"
+            / "firm_characteristics"
+            / quarter
+            / "firm_quarterly_provisional.parquet",
             OUTPUT_DIR / "firm_characteristics" / quarter / "firm_coverage.parquet",
             OUTPUT_DIR / "firm_characteristics" / quarter / "coverage_audit.json",
         ],
-        "uptodate": [config_changed({"quarter": quarter, "start": str(start.date()), "end": str(end.date())})],
+        "uptodate": [
+            config_changed(
+                {"quarter": quarter, "start": str(start.date()), "end": str(end.date())}
+            )
+        ],
         "clean": [],
     }
+
 
 def task_relative_valuation():
     """Run provisional single-quarter relative valuation reference models."""
@@ -345,14 +365,28 @@ def task_relative_valuation():
     quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
     report = OUTPUT_DIR / "relative_valuation" / quarter
     return {
-        "actions": [[sys.executable, "src/valuation/relative_valuation.py", "--quarter", quarter]],
+        "actions": [
+            [
+                sys.executable,
+                "src/valuation/relative_valuation.py",
+                "--quarter",
+                quarter,
+            ]
+        ],
         "file_dep": [
-            DATA_DIR / "clean" / "firm_characteristics" / quarter / "firm_quarterly_provisional.parquet",
+            DATA_DIR
+            / "clean"
+            / "firm_characteristics"
+            / quarter
+            / "firm_quarterly_provisional.parquet",
             "src/valuation/relative_valuation.py",
         ],
         "task_dep": ["firm_characteristics"],
-        "targets": [report / "model_metrics.csv", report / "firm_predictions.parquet",
-                    report / "run_metadata.json"],
+        "targets": [
+            report / "model_metrics.csv",
+            report / "firm_predictions.parquet",
+            report / "run_metadata.json",
+        ],
         "uptodate": [config_changed({"quarter": quarter, "seed": 32800})],
         "clean": [],
     }

@@ -190,15 +190,21 @@ def test_historical_fallback_is_explicit_sensitivity():
     hold, _, _, _ = build_s34_quarter(
         FakeDB(), RDATE, CUSIP_MAP, historical_fallback=True
     )
-    assert hold.set_index(["investor_id", "permco"]).loc[("s34_1", 200), "dollar_holding"] == 250
+    assert (
+        hold.set_index(["investor_id", "permco"]).loc[("s34_1", 200), "dollar_holding"]
+        == 250
+    )
 
 
 def test_ambiguous_direct_cusip_is_quarantined():
     db = FakeDB()
-    db.names = pd.concat([
-        db.names,
-        pd.DataFrame([_common(60, 600, "AAA11111")]),
-    ], ignore_index=True)
+    db.names = pd.concat(
+        [
+            db.names,
+            pd.DataFrame([_common(60, 600, "AAA11111")]),
+        ],
+        ignore_index=True,
+    )
     hold, _, _, _ = build_s34_quarter(db, RDATE, CUSIP_MAP)
     assert 100 not in set(hold.permco)
     assert 600 not in set(hold.permco)
@@ -229,7 +235,13 @@ def test_filter_log(result):
     assert n["1_download"] == 8
     assert n["2a_match_direct"] == 5
     assert n["2_match_cusip"] == 5
-    later = ["2_match_cusip", "2b_aliases_quarantined", "3_common_stock", "4_price", "5_aggregate_permco"]
+    later = [
+        "2_match_cusip",
+        "2b_aliases_quarantined",
+        "3_common_stock",
+        "4_price",
+        "5_aggregate_permco",
+    ]
     assert n[later].is_monotonic_decreasing
 
 

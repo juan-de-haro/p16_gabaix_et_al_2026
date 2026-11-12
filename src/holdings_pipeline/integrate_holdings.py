@@ -18,7 +18,6 @@ import pandas as pd
 
 from settings import config
 
-
 KEY = ["quarter", "investor_id", "permco"]
 VALUES = ["shares", "dollar_holding"]
 
@@ -55,9 +54,7 @@ def combine_source_holdings(s12, s34, quarter):
     if combined.duplicated(KEY).any():
         raise ValueError("Source holdings have colliding investor-firm keys")
     firms_left, firms_right = set(left.permco), set(right.permco)
-    combined["firm_in_both_sources"] = combined.permco.isin(
-        firms_left & firms_right
-    )
+    combined["firm_in_both_sources"] = combined.permco.isin(firms_left & firms_right)
     combined["sample_status"] = "provisional_overlap_unresolved"
     audit = {
         "quarter": str(pd.Period(quarter, freq="Q")),
@@ -97,7 +94,9 @@ def compare_security_links(s12_security, s34_security):
     for source, frame in (("s12", s12_security), ("s34", s34_security)):
         missing = set(keys + values) - set(frame.columns)
         if missing:
-            raise ValueError(f"{source}: missing security link fields {sorted(missing)}")
+            raise ValueError(
+                f"{source}: missing security link fields {sorted(missing)}"
+            )
         mapping = frame[keys + values].drop_duplicates().copy()
         mapping["rdate"] = pd.to_datetime(mapping["rdate"])
         mapping["cusip"] = mapping["cusip"].astype("string").str.strip().str.upper()
