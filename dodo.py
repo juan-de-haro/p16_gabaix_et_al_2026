@@ -30,10 +30,14 @@ USER = config("USER")
 ## Helpers for handling Jupyter Notebook tasks
 environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 
+
 # fmt: off
 ## Helper functions for automatic execution of Jupyter notebooks
 def jupyter_execute_notebook(notebook_path):
-    return f"jupyter nbconvert --execute --to notebook --ClearMetadataPreprocessor.enabled=True --inplace {notebook_path}"
+    return (
+        "jupyter nbconvert --execute --to notebook "
+        f"--ClearMetadataPreprocessor.enabled=True --inplace {notebook_path}"
+    )
 def jupyter_to_html(notebook_path, output_dir=OUTPUT_DIR):
     return f"jupyter nbconvert --to html --output-dir={output_dir} {notebook_path}"
 def jupyter_to_md(notebook_path, output_dir=OUTPUT_DIR):
@@ -41,7 +45,16 @@ def jupyter_to_md(notebook_path, output_dir=OUTPUT_DIR):
     return f"jupytext --to markdown --output-dir={output_dir} {notebook_path}"
 def jupyter_clear_output(notebook_path):
     """Clear the output of a notebook"""
-    return f"jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace {notebook_path}"
+    return (
+        "jupyter nbconvert --ClearOutputPreprocessor.enabled=True "
+        f"--ClearMetadataPreprocessor.enabled=True --inplace {notebook_path}"
+    )
+def log_timestamp(label, notebook):
+    """Shell command that prints a timestamped progress line to stderr"""
+    return (
+        'python -c "import sys; from datetime import datetime; '
+        f"print(f'{label} {notebook}: {{datetime.now()}}', file=sys.stderr)\" "
+    )
 # fmt: on
 
 
@@ -140,20 +153,34 @@ def task_s12():
     yield {
         "name": "process",
         "doc": "Clean and validate the S12-only contribution before combined filters",
-        "actions": [[sys.executable, "src/holdings_pipeline/clean_s12.py", "--quarter", quarter]],
-        "file_dep": inputs + manifests + [
-            "src/holdings_pipeline/clean_s12.py", "src/holdings_pipeline/pull_s12.py", "src/settings.py"
+        "actions": [
+            [sys.executable, "src/holdings_pipeline/clean_s12.py", "--quarter", quarter]
+        ],
+        "file_dep": inputs
+        + manifests
+        + [
+            "src/holdings_pipeline/clean_s12.py",
+            "src/holdings_pipeline/pull_s12.py",
+            "src/settings.py",
         ],
         "task_dep": ["s12:pull"],
         "targets": [
             clean_dir / f"{name}.parquet"
             for name in (
-                "holdings_s12", "holdings_s12_security", "investors_s12",
-                "firm_names_s12", "filter_log_s12", "selected_reports_s12"
+                "holdings_s12",
+                "holdings_s12_security",
+                "investors_s12",
+                "firm_names_s12",
+                "filter_log_s12",
+                "selected_reports_s12",
             )
-        ] + [report_dir / "validation.json", report_dir / "quality_report.html",
-             report_dir / "exceptions" / "ownership_security_review.parquet",
-             report_dir / "exceptions" / "ownership_report_dates.parquet"],
+        ]
+        + [
+            report_dir / "validation.json",
+            report_dir / "quality_report.html",
+            report_dir / "exceptions" / "ownership_security_review.parquet",
+            report_dir / "exceptions" / "ownership_report_dates.parquet",
+        ],
         "uptodate": [config_changed(settings)],
         "clean": [],
     }
@@ -162,22 +189,26 @@ def task_s12():
 def _pipeline_quarter_end():
     """Quarter-end date of END_DATE, shared by the S12, S34, and JKP tasks."""
     from holdings_pipeline.pull_s12 import sample_dates
- 
+
     _, end = sample_dates()
     return end.to_period("Q").end_time.strftime("%Y-%m-%d")
- 
- 
+
+
 def task_s34():
     """Pull and clean S34 for the same quarter as the S12 task."""
     from doit.tools import config_changed
- 
+
     q = _pipeline_quarter_end()
     s34_dir = DATA_DIR / "s34"
     return {
-        "actions": [[
-            sys.executable, "src/holdings_pipeline/pull_s34.py",
-            f"--S34_START={q}", f"--S34_END={q}",
-        ]],
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/pull_s34.py",
+                f"--S34_START={q}",
+                f"--S34_END={q}",
+            ]
+        ],
         "file_dep": ["src/holdings_pipeline/pull_s34.py", "src/settings.py"],
         "targets": [
             s34_dir / f"holdings_{q}.pkl",
@@ -189,23 +220,28 @@ def task_s34():
         "uptodate": [config_changed({"quarter": q})],
         "clean": [],
     }
- 
- 
+
+
 def task_jkp():
     """Pull JKP characteristics and build the firm tables for the same quarter."""
     from doit.tools import config_changed
- 
+
     q = _pipeline_quarter_end()
     raw = [DATA_DIR / "jkp_raw.pkl", DATA_DIR / "jkp_full_raw.pkl"]
     yield {
         "name": "pull",
         "doc": "Pull JKP characteristics from WRDS",
-        "actions": [[
-            sys.executable, "src/holdings_pipeline/pull_jkp.py",
-            f"--JKP_START={q}", f"--JKP_END={q}",
-        ]],
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/pull_jkp.py",
+                f"--JKP_START={q}",
+                f"--JKP_END={q}",
+            ]
+        ],
         "file_dep": [
-            "src/holdings_pipeline/pull_jkp.py", "src/settings.py",
+            "src/holdings_pipeline/pull_jkp.py",
+            "src/settings.py",
             MANUAL_DATA_DIR / "jkp_153_characteristics.csv",
         ],
         "targets": raw,
@@ -216,7 +252,8 @@ def task_jkp():
         "name": "clean",
         "doc": "Build firm_quarterly and firm_quarterly_jkp_full",
         "actions": [[sys.executable, "src/holdings_pipeline/clean_jkp.py"]],
-        "file_dep": raw + [
+        "file_dep": raw
+        + [
             "src/holdings_pipeline/clean_jkp.py",
             "src/holdings_pipeline/pull_jkp.py",
             "src/settings.py",
@@ -229,6 +266,7 @@ def task_jkp():
         ],
         "clean": [],
     }
+
 
 def task_summary_stats():
     """Generate summary statistics tables"""
@@ -287,12 +325,12 @@ def task_run_notebooks():
         yield {
             "name": notebook,
             "actions": [
-                """python -c "import sys; from datetime import datetime; print(f'Start """ + notebook + """: {datetime.now()}', file=sys.stderr)" """,
+                log_timestamp("Start", notebook),
                 f"jupytext --to notebook --output {notebook_path} {pyfile_path}",
                 jupyter_execute_notebook(notebook_path),
                 jupyter_to_html(notebook_path),
                 mv(notebook_path, OUTPUT_DIR),
-                """python -c "import sys; from datetime import datetime; print(f'End """ + notebook + """: {datetime.now()}', file=sys.stderr)" """,
+                log_timestamp("End", notebook),
             ],
             "file_dep": [
                 pyfile_path,
@@ -335,22 +373,24 @@ def task_compile_latex_docs():
     ]
 
     return {
+        # For each .tex file: compile, then clean auxiliary files.
+        # report_example / slides_example are my custom LaTeX templates;
+        # the *_simple_* ones are small adjustments to Overleaf templates.
         "actions": [
-            # My custom LaTeX templates
-            "latexmk -xelatex -halt-on-error -cd ./reports/report_example.tex",  # Compile
-            "latexmk -xelatex -halt-on-error -c -cd ./reports/report_example.tex",  # Clean
-            "latexmk -xelatex -halt-on-error -cd ./reports/slides_example.tex",  # Compile
-            "latexmk -xelatex -halt-on-error -c -cd ./reports/slides_example.tex",  # Clean
-            # Simple templates based on small adjustments to Overleaf templates
-            "latexmk -xelatex -halt-on-error -cd ./reports/report_simple_example.tex",  # Compile
-            "latexmk -xelatex -halt-on-error -c -cd ./reports/report_simple_example.tex",  # Clean
-            "latexmk -xelatex -halt-on-error -cd ./reports/slides_simple_example.tex",  # Compile
-            "latexmk -xelatex -halt-on-error -c -cd ./reports/slides_simple_example.tex",  # Clean
+            f"latexmk -xelatex -halt-on-error {flag}-cd {tex}"
+            for tex in [
+                "./reports/report_example.tex",
+                "./reports/slides_example.tex",
+                "./reports/report_simple_example.tex",
+                "./reports/slides_simple_example.tex",
+            ]
+            for flag in ["", "-c "]
         ],
         "targets": targets,
         "file_dep": file_dep,
         "clean": True,
     }
+
 
 sphinx_targets = [
     "./docs/index.html",
@@ -360,8 +400,7 @@ sphinx_targets = [
 def task_build_chartbook_site():
     """Compile Sphinx Docs"""
     notebook_scripts = [
-        Path(notebook_tasks[notebook]["path"])
-        for notebook in notebook_tasks.keys()
+        Path(notebook_tasks[notebook]["path"]) for notebook in notebook_tasks.keys()
     ]
     file_dep = [
         "./README.md",

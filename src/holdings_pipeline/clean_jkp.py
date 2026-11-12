@@ -127,8 +127,19 @@ def build_firm_quarterly(jkp):
 
     f = f.rename(columns={"eom": "quarter"})
     cols_out = [
-        "quarter", "permco", "me", "log_me", "be", "log_be", "log_be_me",
-        "at_gr1", "gp_at", "ret_12_1", "div_at", "beta_60m", "size_grp",
+        "quarter",
+        "permco",
+        "me",
+        "log_me",
+        "be",
+        "log_be",
+        "log_be_me",
+        "at_gr1",
+        "gp_at",
+        "ret_12_1",
+        "div_at",
+        "beta_60m",
+        "size_grp",
     ]
     return f[cols_out].reset_index(drop=True), log
 

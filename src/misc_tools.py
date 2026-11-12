@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 
 
 def df_to_literal(df, missing_value="None"):
-    """Convert a pandas dataframe to a literal string representing the code to recreate it.
+    """Convert a pandas dataframe to a literal string of code that recreates it.
 
     Converts a pandas DataFrame into a string representation that can be used to
     recreate the DataFrame, including both data and index information. Missing values
@@ -92,7 +92,8 @@ def merge_stats(df_left, df_right, on=[]):
 
     'union': num of elements in union of indices.
     'intersection': num of elements in intersection of indices
-    'union-intersection': difference between union and intersection (unmatched symmetric)
+    'union-intersection': difference between union and intersection
+        (unmatched symmetric)
     'intersection/union': percentage of symmetric matched
     'left': num of elements in left index
     'right': num of elements in in right index
@@ -171,7 +172,8 @@ def dataframe_set_difference(dff, df, library="pandas", show="rows_and_numbers")
         )
 
         # Perform an anti join to find rows in dff not present in df
-        # Note: This requires the DataFrames to have columns to join on that define row uniqueness
+        # Note: This requires the DataFrames to have columns to join on that
+        # define row uniqueness
 
         diff = dff_with_index.join(
             df_with_index, on=list(dff.columns), how="anti", join_nulls=True
@@ -285,7 +287,10 @@ def groupby_weighted_average(
     ...     'rate': [2, 3, 2],
     ...     'start_leg_amount': [100, 200, 100]},
     ... )
-    >>> groupby_weighted_average(data=df_nccb, data_col='rate', weight_col='start_leg_amount', by_col='trade_direction')
+    >>> groupby_weighted_average(
+    ...     data=df_nccb, data_col='rate', weight_col='start_leg_amount',
+    ...     by_col='trade_direction',
+    ... )
     trade_direction
     DELIVERED   2.00
     RECEIVED    2.67
@@ -329,7 +334,10 @@ def groupby_weighted_std(
     ...     'rate': [2, 2, 2, 3, 2, 2, 2, 3],
     ...     'start_leg_amount': [300, 300, 300, 0, 200, 200, 200, 200]},
     ... )
-    >>> groupby_weighted_std(data=df_nccb, data_col='rate', weight_col='start_leg_amount', by_col='trade_direction', ddof=1)
+    >>> groupby_weighted_std(
+    ...     data=df_nccb, data_col='rate', weight_col='start_leg_amount',
+    ...     by_col='trade_direction', ddof=1,
+    ... )
     trade_direction
     DELIVERED   0.50
     RECEIVED    0.00
@@ -338,7 +346,10 @@ def groupby_weighted_std(
     0.5
     >>> np.std([2,2,2], ddof=1)
     0.0
-    >>> groupby_weighted_std(data=df_nccb, data_col='rate', weight_col='start_leg_amount', by_col='trade_direction', ddof=0)
+    >>> groupby_weighted_std(
+    ...     data=df_nccb, data_col='rate', weight_col='start_leg_amount',
+    ...     by_col='trade_direction', ddof=0,
+    ... )
     trade_direction
     DELIVERED   0.43
     RECEIVED    0.00
@@ -398,7 +409,10 @@ def weighted_quantile(
     NOTE: that a groupby weighted quantile can look like this:
     ```
     median_SD_spread = data.groupby('date').apply(
-        lambda x: weighted_quantile(x['rate_SD_spread'], 0.5, sample_weight=x['Volume']))
+        lambda x: weighted_quantile(
+            x['rate_SD_spread'], 0.5, sample_weight=x['Volume']
+        )
+    )
     ```
     """
     values = np.array(values)
@@ -531,7 +545,9 @@ def with_lagged_columns(
     7  B 1990-04-01      4
     8  B 1990-06-01      6
 
-    >>> df_lag = _with_lagged_column_no_resample(df=df, columns_to_lag=['value'], id_columns=['id'], lags=1)
+    >>> df_lag = _with_lagged_column_no_resample(
+    ...     df=df, columns_to_lag=['value'], id_columns=['id'], lags=1
+    ... )
     >>> df_lag
       id       date  value  L1_value
     0  A 1990-01-01      1       NaN
@@ -550,7 +566,10 @@ def with_lagged_columns(
 
     Rather, it should look like this:
 
-    >>> df_lag = with_lagged_columns(df=df, column_to_lag='value', id_column='id', lags=1, freq="MS", resample=True)
+    >>> df_lag = with_lagged_columns(
+    ...     df=df, column_to_lag='value', id_column='id', lags=1,
+    ...     freq="MS", resample=True,
+    ... )
     >>> df_lag
        id       date  value  L1_value
     2   A 1990-01-01   1.00       NaN
@@ -790,7 +809,9 @@ def plot_weighted_median_with_distribution_bars(
     xlabel=None,
     label=None,
 ):
-    """Plot the weighted median of a variable over time. Optionally, plot the 25th and 75th percentiles
+    """Plot the weighted median of a variable over time.
+
+    Optionally, plot the 25th and 75th percentiles
 
     Examples
     --------
@@ -811,7 +832,10 @@ def plot_weighted_median_with_distribution_bars(
             xlabel=None,
             label='Median Spread'
             )
-    plt.title('Volume-weighted median rate spread (bps)\nShaded region shows 25/75 percentiles')
+    plt.title(
+        'Volume-weighted median rate spread (bps)\n'
+        'Shaded region shows 25/75 percentiles'
+    )
     other_bbg['2019-10-21':].plot(ax=ax)
     plt.legend()
 
@@ -831,7 +855,10 @@ def plot_weighted_median_with_distribution_bars(
             xlabel=None,
             label=None
             )
-    plt.title('Volume-weighted median rate spread (bps)\nShaded region shows 25/75 percentiles')
+    plt.title(
+        'Volume-weighted median rate spread (bps)\n'
+        'Shaded region shows 25/75 percentiles'
+    )
     other_bbg['2019-10-21':].plot(ax=ax)
     plt.legend()
     ```

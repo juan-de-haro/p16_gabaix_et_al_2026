@@ -24,10 +24,24 @@ Q = pd.Timestamp("2022-12-31")
 
 
 def _row(permno, permco, gvkey, size_grp, me, be, **chars):
-    base = {"at_gr1": 0.1, "gp_at": 0.2, "ret_12_1": 0.0, "div_at": 0.01, "beta_60m": 1.0}
+    base = {
+        "at_gr1": 0.1,
+        "gp_at": 0.2,
+        "ret_12_1": 0.0,
+        "div_at": 0.01,
+        "beta_60m": 1.0,
+    }
     base.update(chars)
-    return {"permno": permno, "permco": permco, "gvkey": gvkey, "eom": Q,
-            "size_grp": size_grp, "me": me, "book_equity": be, **base}
+    return {
+        "permno": permno,
+        "permco": permco,
+        "gvkey": gvkey,
+        "eom": Q,
+        "size_grp": size_grp,
+        "me": me,
+        "book_equity": be,
+        **base,
+    }
 
 
 @pytest.fixture(scope="module")
@@ -68,8 +82,8 @@ def test_aggregation(built):
     fq, _ = built
     fq = fq.set_index("permco")
     assert fq.loc[540, "me"] == 400.0
-    assert fq.loc[540, "be"] == 200.0   # same gvkey: counted once
-    assert fq.loc[543, "be"] == 25.0    # two gvkeys: 10 + 15
+    assert fq.loc[540, "be"] == 200.0  # same gvkey: counted once
+    assert fq.loc[543, "be"] == 25.0  # two gvkeys: 10 + 15
     assert fq.loc[543, "me"] == 60.0
     assert fq.loc[540, "beta_60m"] == pytest.approx((300 * 1 + 100 * 3) / 400)
     assert fq.loc[540, "size_grp"] == "mega"
@@ -96,7 +110,9 @@ def test_jkp_full(jkp, built):
     df = jkp[["permco", "eom", "me", "at_gr1"]].assign(market_equity=jkp["me"])
     full = build_jkp_full(df, fq, ["at_gr1", "market_equity"])
     assert list(full.columns) == ["quarter", "permco", "at_gr1", "market_equity"]
-    assert set(zip(full["quarter"], full["permco"])) == set(zip(fq["quarter"], fq["permco"]))
+    assert set(zip(full["quarter"], full["permco"])) == set(
+        zip(fq["quarter"], fq["permco"])
+    )
     assert full.set_index("permco").loc[540, "market_equity"] == 400.0
 
 

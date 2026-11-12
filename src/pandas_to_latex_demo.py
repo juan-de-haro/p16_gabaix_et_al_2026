@@ -17,14 +17,14 @@ YOUR LATEX TABLE CODE HERE
 
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-np.random.seed(100)
-
-from pathlib import Path
-
 from settings import config
+
+np.random.seed(100)
 
 DATA_DIR = Path(config("DATA_DIR"))
 OUTPUT_DIR = Path(config("OUTPUT_DIR"))
@@ -33,8 +33,11 @@ OUTPUT_DIR = Path(config("OUTPUT_DIR"))
 ## Suppress scientific notation and limit to 3 decimal places
 # Sets display, but doesn't affect formatting to LaTeX
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
+
+
 # Sets format for printing to LaTeX
-float_format_func = lambda x: "{:.2f}".format(x)
+def float_format_func(x):
+    return "{:.2f}".format(x)
 
 
 df = pd.DataFrame(np.random.random((5, 5)))

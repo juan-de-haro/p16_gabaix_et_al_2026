@@ -92,19 +92,51 @@ def pull_compustat(wrds_username=WRDS_USERNAME):
 
 
 description_crsp = {
-    "permno": "Permanent Number - A unique identifier assigned by CRSP to each security.",
-    "permco": "Permanent Company - A unique company identifier assigned by CRSP that remains constant over time for a given company.",
+    "permno": (
+        "Permanent Number - A unique identifier assigned by CRSP to each security."
+    ),
+    "permco": (
+        "Permanent Company - A unique company identifier assigned by CRSP that "
+        "remains constant over time for a given company."
+    ),
     "mthcaldt": "Calendar Date - The date for the monthly data observation.",
-    "issuertype": "Issuer Type - Classification of the issuer, such as corporate or government.",
-    "securitytype": "Security Type - General classification of the security, e.g., stock or bond.",
-    "securitysubtype": "Security Subtype - More specific classification of the security within its type.",
-    "sharetype": "Share Type - Classification of the equity share type, e.g., common stock, preferred stock.",
-    "usincflg": "U.S. Incorporation Flag - Indicator of whether the company is incorporated in the U.S.",
-    "primaryexch": "Primary Exchange - The primary stock exchange where the security is listed.",
-    "conditionaltype": "Conditional Type - Indicator of any conditional issues related to the security.",
-    "tradingstatusflg": "Trading Status Flag - Indicator of the trading status of the security, e.g., active, suspended.",
-    "mthret": "Monthly Return - The total return of the security for the month, including dividends.",
-    "mthretx": "Monthly Return Excluding Dividends - The return of the security for the month, excluding dividends.",
+    "issuertype": (
+        "Issuer Type - Classification of the issuer, such as corporate or government."
+    ),
+    "securitytype": (
+        "Security Type - General classification of the security, e.g., stock or bond."
+    ),
+    "securitysubtype": (
+        "Security Subtype - More specific classification of the security within its "
+        "type."
+    ),
+    "sharetype": (
+        "Share Type - Classification of the equity share type, e.g., common stock, "
+        "preferred stock."
+    ),
+    "usincflg": (
+        "U.S. Incorporation Flag - Indicator of whether the company is incorporated "
+        "in the U.S."
+    ),
+    "primaryexch": (
+        "Primary Exchange - The primary stock exchange where the security is listed."
+    ),
+    "conditionaltype": (
+        "Conditional Type - Indicator of any conditional issues related to the "
+        "security."
+    ),
+    "tradingstatusflg": (
+        "Trading Status Flag - Indicator of the trading status of the security, e.g.,"
+        " active, suspended."
+    ),
+    "mthret": (
+        "Monthly Return - The total return of the security for the month, including "
+        "dividends."
+    ),
+    "mthretx": (
+        "Monthly Return Excluding Dividends - The return of the security for the "
+        "month, excluding dividends."
+    ),
     "shrout": "Shares Outstanding - The number of outstanding shares of the security.",
     "mthprc": "Monthly Price - The price of the security at the end of the month.",
 }
@@ -183,12 +215,33 @@ def pull_CRSP_stock_ciz(wrds_username=WRDS_USERNAME):
 
 
 description_crsp_comp_link = {
-    "gvkey": "Global Company Key - A unique identifier for companies in the Compustat database.",
-    "permno": "Permanent Number - A unique stock identifier assigned by CRSP to each security.",
-    "linktype": "Link Type - Indicates the type of linkage between CRSP and Compustat records. 'L' types refer to links considered official by CRSP.",
-    "linkprim": "Primary Link Indicator - Specifies whether the link is a primary ('P') or secondary ('C') connection between the databases. Primary links are direct matches between CRSP and Compustat entities, while secondary links may represent subsidiary relationships or other less direct connections.",
-    "linkdt": "Link Date Start - The starting date for which the linkage between CRSP and Compustat data is considered valid.",
-    "linkenddt": "Link Date End - The ending date for which the linkage is considered valid. A blank or high value (e.g., '2099-12-31') indicates that the link is still valid as of the last update.",
+    "gvkey": (
+        "Global Company Key - A unique identifier for companies in the Compustat "
+        "database."
+    ),
+    "permno": (
+        "Permanent Number - A unique stock identifier assigned by CRSP to each "
+        "security."
+    ),
+    "linktype": (
+        "Link Type - Indicates the type of linkage between CRSP and Compustat "
+        "records. 'L' types refer to links considered official by CRSP."
+    ),
+    "linkprim": (
+        "Primary Link Indicator - Specifies whether the link is a primary ('P') or "
+        "secondary ('C') connection between the databases. Primary links are direct "
+        "matches between CRSP and Compustat entities, while secondary links may "
+        "represent subsidiary relationships or other less direct connections."
+    ),
+    "linkdt": (
+        "Link Date Start - The starting date for which the linkage between CRSP and "
+        "Compustat data is considered valid."
+    ),
+    "linkenddt": (
+        "Link Date End - The ending date for which the linkage is considered valid. A"
+        " blank or high value (e.g., '2099-12-31') indicates that the link is still "
+        "valid as of the last update."
+    ),
 }
 
 
@@ -249,6 +302,7 @@ def _demo():
     crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
     ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
     ff = load_Fama_French_factors(data_dir=DATA_DIR)
+    return comp, crsp, ccm, ff
 
 
 if __name__ == "__main__":
