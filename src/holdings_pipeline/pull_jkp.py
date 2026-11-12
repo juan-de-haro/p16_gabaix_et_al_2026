@@ -20,7 +20,8 @@ Usage (from the project root). The default is the 2022Q4 pilot:
 
 Full history:
 
-    uv run python src/holdings_pipeline/pull_jkp.py --JKP_START=2005-03-31 --JKP_END=2025-12-31
+    uv run python src/holdings_pipeline/pull_jkp.py \\
+        --JKP_START=2005-03-31 --JKP_END=2025-12-31
 
 JKP on WRDS currently ends in 2025-12.
 """

@@ -50,14 +50,16 @@ def pull_CRSP_monthly_file(
     Notes
     -----
 
-    From Bali, Engle, Murray -- Empirical asset pricing-the cross section of stock returns (2016):
+    From Bali, Engle, Murray -- Empirical asset pricing-the cross section of
+    stock returns (2016):
     "There are two main proxies for the market portfolio that are commonly used
-    in empirical asset pricing research. The first is the value-weighted portfolio of all
-    U.S.-based common stocks in the CRSP database... We follow common convention by referring
-    to this portfolio and its excess returns as MKT. The second portfolio commonly used as
-    a proxy for the market portfolio is the CRSP value-weighted portfolio, which contains
-    all securities in the CRSP database, not just common stocks, but excluding American
-    Depository Receipts (ADRs). Following CRSP, we denote this portfolio VWRETD."
+    in empirical asset pricing research. The first is the value-weighted
+    portfolio of all U.S.-based common stocks in the CRSP database... We follow
+    common convention by referring to this portfolio and its excess returns as
+    MKT. The second portfolio commonly used as a proxy for the market portfolio
+    is the CRSP value-weighted portfolio, which contains all securities in the
+    CRSP database, not just common stocks, but excluding American Depository
+    Receipts (ADRs). Following CRSP, we denote this portfolio VWRETD."
 
     **CIZ Format Security Filtering:**
 
@@ -204,6 +206,7 @@ def load_CRSP_index_files(data_dir=DATA_DIR):
 def _demo():
     df_msf = load_CRSP_monthly_file(data_dir=DATA_DIR)
     df_msix = load_CRSP_index_files(data_dir=DATA_DIR)
+    return df_msf, df_msix
 
 
 if __name__ == "__main__":

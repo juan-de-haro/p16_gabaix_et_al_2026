@@ -7,14 +7,13 @@ helper functions to help convert Pandas to LaTeX tables.
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
 OUTPUT_DIR = Path(config("OUTPUT_DIR"))
-
-import numpy as np
 
 # FRED was not selected for this project, so simulate quarterly levels to stand
 # in for the CPI and real GDP series that pull_fred.py would otherwise load.
@@ -58,8 +57,12 @@ last_year = df_annual.index.year.max()
 ## Suppress scientific notation and limit to 3 decimal places
 # Sets display, but doesn't affect formatting to LaTeX
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
+
+
 # Sets format for printing to LaTeX
-float_format_func = lambda x: "{:.2f}".format(x)
+def float_format_func(x):
+    return "{:.2f}".format(x)
+
 
 # Pooled summary stats
 describe_all = (

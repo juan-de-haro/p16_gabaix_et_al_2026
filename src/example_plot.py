@@ -2,13 +2,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from matplotlib import pyplot as plt
+
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
 OUTPUT_DIR = Path(config("OUTPUT_DIR"))
-
-import seaborn as sns
-from matplotlib import pyplot as plt
 
 sns.set()
 
