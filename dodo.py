@@ -547,7 +547,7 @@ def task_build_chartbook_site():
 
 def task_run_pytest():
     """Run pytest and save results to OUTPUT_DIR"""
-    src_py_files = list(Path("./src").glob("*.py"))
+    src_py_files = list(Path("./src").rglob("*.py"))
     test_output = OUTPUT_DIR / "pytest_results.xml"
 
     def run_pytest():
@@ -564,7 +564,9 @@ def task_run_pytest():
     return {
         "actions": [run_pytest],
         "targets": [test_output],
-        "file_dep": src_py_files,
+        "file_dep": src_py_files
+        + [DATA_DIR / "filter_log_s34.pkl", DATA_DIR / "filter_log_firms.pkl"],
+        "task_dep": ["s34", "jkp:clean"],
         "clean": True,
         "verbosity": 2,
     }
