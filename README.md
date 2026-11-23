@@ -9,6 +9,10 @@ A data science project
 
 ### S12 data contribution
 
+For the 2005Q1–2022Q4 sample, see the [historical S12 runbook and quarterly
+results](design/s12_history/README.md). It includes a single-quarter command
+and a full rebuild using the same cleaner.
+
 S12 scripts and tests live in `src/holdings_pipeline/`, alongside the S34/JKP
 scripts. Raw data, processed data, local configuration, and generated reports
 stay out of Git; each collaborator uses their own WRDS access to reproduce them.
