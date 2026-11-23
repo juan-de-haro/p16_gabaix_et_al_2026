@@ -147,8 +147,14 @@ def export_query(connection, query, params, target, force=False):
     return metadata
 
 
-def pull(start=None, end=None, force=False):
+def pull(start=None, end=None, force=False, *, count_year=False):
+    """Cache source tables and optionally return independent quarterly row counts."""
     start, end = sample_dates(start, end)
+    if count_year and (
+        start.year != end.year
+        or (start.month, start.day, end.month, end.day) != (1, 1, 12, 31)
+    ):
+        raise ValueError("Source count receipts require one complete calendar year.")
     directory = raw_directory(start, end)
     params = {"start": start.date().isoformat(), "end": end.date().isoformat()}
     # pgpass is used by libpq; passwords are never put in code or manifests.
@@ -163,6 +169,24 @@ def pull(start=None, end=None, force=False):
         options="-c default_transaction_read_only=on -c statement_timeout=600000",
     )
     try:
+        receipt = None
+        if count_year:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT extract(quarter FROM rdate)::int, count(*)
+                       FROM tfn.s12 WHERE rdate BETWEEN %(start)s AND %(end)s
+                       GROUP BY 1 ORDER BY 1""",
+                    params,
+                )
+                counts = {str(q): n for q, n in cursor.fetchall()}
+            connection.rollback()
+            if set(counts) != set("1234"):
+                raise ValueError(f"Incomplete WRDS quarter counts for {start.year}")
+            receipt = {
+                "year": start.year,
+                "rows_by_report_quarter": counts,
+                "total_rows": sum(counts.values()),
+            }
         export_query(
             connection,
             """
@@ -220,6 +244,7 @@ def pull(start=None, end=None, force=False):
     finally:
         connection.close()
     print(f"Raw inputs saved to {directory}", flush=True)
+    return receipt
 
 
 if __name__ == "__main__":
