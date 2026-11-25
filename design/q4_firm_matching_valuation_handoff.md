@@ -16,6 +16,14 @@ Shuxin owns firm matching, valuation inputs, and the initial valuation benchmark
 
 ## 1. What is available
 
+**Managed portfolio benchmark update:** A separate preliminary scoring
+framework is available in [managed_portfolio_benchmark.md](managed_portfolio_benchmark.md).
+It prepares masked test cases, checks candidate completeness against an
+explicit firm universe, and compares model predictions on common cases. The
+team still needs to agree on the input sample and universe and supply trained
+model probabilities. Its 2024-draft scoring interpretation is documented;
+the 2026 paper's printed formula remains to be confirmed.
+
 | Item | Local path | Grain or purpose |
 |---|---|---|
 | Provisional holdings | `_data/clean/combined/2022Q4/holdings_provisional.parquet` | `quarter × investor_id × permco`; source union with overlap unresolved |
