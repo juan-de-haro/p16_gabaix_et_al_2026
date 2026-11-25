@@ -62,6 +62,11 @@ def test_row_counts_never_increase(counts_by_step):
     increases = counts_by_step.diff(axis=1).iloc[:, 1:] > 0
     assert not increases.any().any(), counts_by_step[increases.any(axis=1)]
 
+def test_every_quarter_logs_the_same_steps():
+    log = pd.read_pickle(LOG_PATH)
+    steps = log.groupby("quarter")["step"].apply(frozenset)
+    assert steps.nunique() == 1, steps.value_counts()
+
 
 @pytest.mark.parametrize("step, min_keep", MIN_KEEP.items())
 def test_step_keeps_minimum_share(counts_by_step, step, min_keep):
