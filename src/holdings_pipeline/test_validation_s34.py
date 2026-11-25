@@ -62,6 +62,7 @@ def test_row_counts_never_increase(counts_by_step):
     increases = counts_by_step.diff(axis=1).iloc[:, 1:] > 0
     assert not increases.any().any(), counts_by_step[increases.any(axis=1)]
 
+
 def test_every_quarter_logs_the_same_steps():
     log = pd.read_pickle(LOG_PATH)
     steps = log.groupby("quarter")["step"].apply(frozenset)
