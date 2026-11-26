@@ -50,8 +50,9 @@ uv run pytest -q src/holdings_pipeline/test_s34.py src/holdings_pipeline/test_jk
 
 Outputs in `_data/`:
 
-- `s34/holdings_<quarter>.pkl`, `s34/investors_<quarter>.pkl`, `s34/log_<quarter>.pkl`
-- `s34/security_<quarter>.pkl` (accepted security-level links for reconciliation)
+- `clean/s34/<YYYYQn>/holdings_s34.parquet`, `investors_s34.parquet`, `filter_log_s34.parquet`
+- `clean/s34/<YYYYQn>/holdings_s34_security.parquet` (accepted security-level links for reconciliation)
+- `clean/s34/filter_log_s34.parquet` (all quarters) and `raw/s34/crsp_cusip_map.parquet`
 - `firm_quarterly.pkl`, `firm_quarterly_jkp_full.pkl`, `filter_log_firms.pkl`
 
 Units: S34 `dollar_holding` and `aum` are in USD; JKP `me` and `be` are in

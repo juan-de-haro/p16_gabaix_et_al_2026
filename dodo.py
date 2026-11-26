@@ -201,7 +201,7 @@ def task_s34():
     from doit.tools import config_changed
 
     q = _pipeline_quarter_end()
-    s34_dir = DATA_DIR / "s34"
+    s34_dir = DATA_DIR / "clean" / "s34" / str(pd.Period(q, freq="Q"))
     return {
         "actions": [
             [
@@ -213,12 +213,12 @@ def task_s34():
         ],
         "file_dep": ["src/holdings_pipeline/pull_s34.py", "src/settings.py"],
         "targets": [
-            s34_dir / f"holdings_{q}.pkl",
-            s34_dir / f"investors_{q}.pkl",
-            s34_dir / f"log_{q}.pkl",
-            s34_dir / f"security_{q}.pkl",
-            DATA_DIR / "crsp_cusip_map.pkl",
-            DATA_DIR / "filter_log_s34.pkl",
+            s34_dir / "holdings_s34.parquet",
+            s34_dir / "investors_s34.parquet",
+            s34_dir / "filter_log_s34.parquet",
+            s34_dir / "holdings_s34_security.parquet",
+            DATA_DIR / "raw" / "s34" / "crsp_cusip_map.parquet",
+            DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
         ],
         "uptodate": [
             config_changed(
@@ -285,7 +285,6 @@ def task_holdings_provisional():
     from doit.tools import config_changed
 
     quarter = str(pd.Period(_pipeline_quarter_end(), freq="Q"))
-    qdate = _pipeline_quarter_end()
     return {
         "actions": [
             [
@@ -299,9 +298,9 @@ def task_holdings_provisional():
             DATA_DIR / "clean" / "s12" / quarter / "holdings_s12.parquet",
             DATA_DIR / "clean" / "s12" / quarter / "filter_log_s12.parquet",
             DATA_DIR / "clean" / "s12" / quarter / "holdings_s12_security.parquet",
-            DATA_DIR / "s34" / f"holdings_{qdate}.pkl",
-            DATA_DIR / "s34" / f"log_{qdate}.pkl",
-            DATA_DIR / "s34" / f"security_{qdate}.pkl",
+            DATA_DIR / "clean" / "s34" / quarter / "holdings_s34.parquet",
+            DATA_DIR / "clean" / "s34" / quarter / "filter_log_s34.parquet",
+            DATA_DIR / "clean" / "s34" / quarter / "holdings_s34_security.parquet",
             "src/holdings_pipeline/integrate_holdings.py",
         ],
         "task_dep": ["s12:process", "s34"],
@@ -565,7 +564,10 @@ def task_run_pytest():
         "actions": [run_pytest],
         "targets": [test_output],
         "file_dep": src_py_files
-        + [DATA_DIR / "filter_log_s34.pkl", DATA_DIR / "filter_log_firms.pkl"],
+        + [
+            DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
+            DATA_DIR / "filter_log_firms.pkl",
+        ],
         "task_dep": ["s34", "jkp:clean"],
         "clean": True,
         "verbosity": 2,

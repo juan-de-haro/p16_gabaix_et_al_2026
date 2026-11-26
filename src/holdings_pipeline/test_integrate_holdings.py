@@ -75,11 +75,11 @@ def test_pilot_reads_both_source_contracts_and_writes_audit(tmp_path):
     data = tmp_path / "data"
     output = tmp_path / "output"
     s12_dir = data / "clean" / "s12" / "2022Q4"
-    s34_dir = data / "s34"
+    s34_dir = data / "clean" / "s34" / "2022Q4"
     s12_dir.mkdir(parents=True)
     s34_dir.mkdir(parents=True)
     _source("s12", 1, [10]).to_parquet(s12_dir / "holdings_s12.parquet")
-    _source("s34", 2, [10]).to_pickle(s34_dir / "holdings_2022-12-31.pkl")
+    _source("s34", 2, [10]).to_parquet(s34_dir / "holdings_s34.parquet")
     security = pd.DataFrame(
         {
             "rdate": [pd.Timestamp("2022-12-31")],
@@ -89,7 +89,7 @@ def test_pilot_reads_both_source_contracts_and_writes_audit(tmp_path):
         }
     )
     security.to_parquet(s12_dir / "holdings_s12_security.parquet")
-    security.to_pickle(s34_dir / "security_2022-12-31.pkl")
+    security.to_parquet(s34_dir / "holdings_s34_security.parquet")
     pd.DataFrame(
         {
             "step": ["positive_shares_valid_cusip", "unique_cusip_at_report_date"],
@@ -101,7 +101,7 @@ def test_pilot_reads_both_source_contracts_and_writes_audit(tmp_path):
             "step": ["1_download", "2a_match_direct"],
             "n_obs": [3, 1],
         }
-    ).to_pickle(s34_dir / "log_2022-12-31.pkl")
+    ).to_parquet(s34_dir / "filter_log_s34.parquet")
 
     audit = build_pilot("2022Q4", data, output)
     combined = pd.read_parquet(

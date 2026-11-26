@@ -21,12 +21,16 @@ For each report date (rdate), this script:
    Holdings with a missing price or split factor are dropped (step 4_price).
 5. Aggregates PERMNO to PERMCO.
 
-Outputs (in DATA_DIR/s34/), one file per quarter:
-    holdings_<rdate>.pkl   quarter, investor_id, permco, shares, dollar_holding (USD)
-    investors_<rdate>.pkl  quarter, investor_id, source, source_id, name,
-                           investor_type, n_holdings, aum (USD)
-    log_<rdate>.pkl        quarter, step, n_obs, n_investors, n_firms
-Plus DATA_DIR/crsp_cusip_map.pkl and DATA_DIR/filter_log_s34.pkl.
+Outputs are Parquet files laid out like S12 (see MERGE_NOTES.md, section 7).
+In DATA_DIR/clean/s34/<YYYYQn>/, one folder per quarter:
+    holdings_s34.parquet           quarter, investor_id, permco, shares,
+                                   dollar_holding (USD)
+    investors_s34.parquet          quarter, investor_id, source, source_id, name,
+                                   investor_type, n_holdings, aum (USD)
+    holdings_s34_security.parquet  accepted security-level links
+    filter_log_s34.parquet         quarter, step, n_obs, n_investors, n_firms
+Plus DATA_DIR/clean/s34/filter_log_s34.parquet (all quarters) and
+DATA_DIR/raw/s34/crsp_cusip_map.parquet. Use quarter_file() to locate them.
 
 Note: investor_type is TR's typecode ("13f_typecode_<n>"). It does not
 identify hedge funds, and S34 overlaps with S12 fund families (e.g.
@@ -65,7 +69,26 @@ S34_SKIP_EXISTING = config(
 S34_HISTORICAL_FALLBACK = config(
     "S34_HISTORICAL_FALLBACK", default="False", cast=lambda s: str(s).lower() == "true"
 )
-S34_DIR = DATA_DIR / "s34"
+S34_DIR = DATA_DIR / "clean" / "s34"
+RAW_DIR = DATA_DIR / "raw" / "s34"
+LOG_PATH = S34_DIR / "filter_log_s34.parquet"
+CUSIP_MAP_PATH = RAW_DIR / "crsp_cusip_map.parquet"
+FILES = {
+    "holdings": "holdings_s34",
+    "investors": "investors_s34",
+    "security": "holdings_s34_security",
+    "log": "filter_log_s34",
+}
+
+
+def quarter_dir(rdate, out_dir=S34_DIR):
+    """Folder for one quarter, named like S12's: e.g. .../2022Q4."""
+    return Path(out_dir) / str(pd.Period(rdate, freq="Q"))
+
+
+def quarter_file(rdate, kind="holdings", out_dir=S34_DIR):
+    """Path of one saved table: kind is holdings, investors, security, or log."""
+    return quarter_dir(rdate, out_dir) / f"{FILES[kind]}.parquet"
 
 
 def pull_cusip_map(db):
@@ -287,11 +310,8 @@ def pull_s34(
     historical_fallback=False,
 ):
     """Build and save S34 files for each quarter."""
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
     for q in quarters:
-        path_h = out_dir / f"holdings_{q}.pkl"
-        if skip_existing and path_h.exists():
+        if skip_existing and quarter_file(q, "holdings", out_dir).exists():
             continue
         hold_q, inv_q, log_q, adj_q, security_q = build_s34_quarter(
             db,
@@ -300,31 +320,40 @@ def pull_s34(
             historical_fallback=historical_fallback,
             include_security=True,
         )
-        hold_q.to_pickle(path_h)
-        inv_q.to_pickle(out_dir / f"investors_{q}.pkl")
-        log_q.to_pickle(out_dir / f"log_{q}.pkl")
-        security_q.to_pickle(out_dir / f"security_{q}.pkl")
+        quarter_dir(q, out_dir).mkdir(parents=True, exist_ok=True)
+        tables = {
+            "holdings": hold_q,
+            "investors": inv_q,
+            "security": security_q,
+            "log": log_q,
+        }
+        for kind, frame in tables.items():
+            frame.to_parquet(quarter_file(q, kind, out_dir), index=False)
         print(q, len(hold_q), len(inv_q), len(adj_q))
 
 
 def load_s34(kind="holdings", data_dir=DATA_DIR):
-    """Load saved S34 files. kind is 'holdings', 'investors', or 'log'."""
-    files = sorted((Path(data_dir) / "s34").glob(f"{kind}_*.pkl"))
+    """Load saved S34 files for all quarters.
+
+    kind is 'holdings', 'investors', 'security', or 'log'.
+    """
+    s34_dir = Path(data_dir) / "clean" / "s34"
+    files = sorted(s34_dir.glob(f"*/{FILES[kind]}.parquet"))
     if not files:
-        raise FileNotFoundError(f"No S34 {kind} files in {Path(data_dir) / 's34'}")
-    return pd.concat([pd.read_pickle(f) for f in files], ignore_index=True)
+        raise FileNotFoundError(f"No S34 {kind} files in {s34_dir}")
+    return pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
 
 
 def load_cusip_map(data_dir=DATA_DIR):
-    return pd.read_pickle(Path(data_dir) / "crsp_cusip_map.pkl")
+    return pd.read_parquet(Path(data_dir) / "raw" / "s34" / "crsp_cusip_map.parquet")
 
 
 if __name__ == "__main__":
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
     db = wrds.Connection(wrds_username=config("WRDS_USERNAME"))
 
     cusip_map = pull_cusip_map(db)
-    cusip_map.to_pickle(DATA_DIR / "crsp_cusip_map.pkl")
+    cusip_map.to_parquet(CUSIP_MAP_PATH, index=False)
 
     quarters = list_quarters(db, S34_START, S34_END)
     pull_s34(
@@ -335,5 +364,5 @@ if __name__ == "__main__":
         historical_fallback=S34_HISTORICAL_FALLBACK,
     )
 
-    load_s34("log").to_pickle(DATA_DIR / "filter_log_s34.pkl")
+    load_s34("log").to_parquet(LOG_PATH, index=False)
     db.close()
