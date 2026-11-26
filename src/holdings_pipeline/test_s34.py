@@ -16,8 +16,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from holdings_pipeline.pull_s34 import build_s34_quarter
-from settings import config
+from holdings_pipeline.pull_s34 import (
+    S34_DIR,
+    build_s34_quarter,
+    load_s34,
+    pull_s34,
+    quarter_dir,
+    quarter_file,
+)
 
 RDATE = "2022-12-31"
 
@@ -245,26 +251,48 @@ def test_filter_log(result):
     assert n[later].is_monotonic_decreasing
 
 
+def test_quarter_paths_follow_the_s12_layout(tmp_path):
+    assert quarter_dir("2022-12-31", tmp_path) == tmp_path / "2022Q4"
+    assert quarter_file("2022-12-31", "security", tmp_path).name == (
+        "holdings_s34_security.parquet"
+    )
+
+
+def test_saved_parquet_round_trip(tmp_path):
+    """pull_s34 writes Parquet files that load back unchanged."""
+    out_dir = tmp_path / "clean" / "s34"
+    pull_s34(FakeDB(), [RDATE], CUSIP_MAP, out_dir=out_dir)
+    hold, inv, log, _, security = build_s34_quarter(
+        FakeDB(), RDATE, CUSIP_MAP, include_security=True
+    )
+    expected = {"holdings": hold, "investors": inv, "log": log, "security": security}
+    for kind, frame in expected.items():
+        saved = pd.read_parquet(quarter_file(RDATE, kind, out_dir))
+        pd.testing.assert_frame_equal(
+            saved, frame.reset_index(drop=True), check_dtype=False
+        )
+    assert len(load_s34("holdings", data_dir=tmp_path)) == len(hold)
+
+
 # Checks on saved outputs --------------------------------------------------
 
-S34_DIR = Path(config("DATA_DIR")) / "s34"
-SAVED = sorted(S34_DIR.glob("holdings_*.pkl"))
+SAVED = sorted(S34_DIR.glob("*/holdings_s34.parquet"))
 # Check at most the first, middle, and last saved quarter to keep tests quick.
 SAMPLE = sorted({SAVED[0], SAVED[len(SAVED) // 2], SAVED[-1]}) if SAVED else []
 
 
 @pytest.mark.skipif(not SAMPLE, reason="No saved S34 holdings yet")
-@pytest.mark.parametrize("path", SAMPLE, ids=[p.stem for p in SAMPLE])
+@pytest.mark.parametrize("path", SAMPLE, ids=[p.parent.name for p in SAMPLE])
 def test_saved_quarter(path):
-    q = path.stem.replace("holdings_", "")
-    hold = pd.read_pickle(path)
-    inv = pd.read_pickle(S34_DIR / f"investors_{q}.pkl")
+    q = pd.Period(path.parent.name, freq="Q").end_time.normalize()
+    hold = pd.read_parquet(path)
+    inv = pd.read_parquet(path.with_name("investors_s34.parquet"))
 
     assert not hold.duplicated(["quarter", "investor_id", "permco"]).any()
     assert np.isfinite(hold["dollar_holding"]).all()
     assert (hold["dollar_holding"] > 0).all()
     assert hold["investor_id"].str.startswith("s34_").all()
-    assert (hold["quarter"] == pd.Timestamp(q)).all()
+    assert (hold["quarter"] == q).all()
 
     assert not inv.duplicated(["quarter", "investor_id"]).any()
     assert set(inv["investor_id"]) == set(hold["investor_id"])

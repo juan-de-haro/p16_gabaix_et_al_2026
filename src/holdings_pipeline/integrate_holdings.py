@@ -115,19 +115,18 @@ def build_pilot(quarter="2022Q4", data_dir=None, output_dir=None):
     data_dir = Path(data_dir or config("DATA_DIR"))
     output_dir = Path(output_dir or config("OUTPUT_DIR"))
     period = pd.Period(quarter, freq="Q")
-    qdate = period.end_time.normalize().strftime("%Y-%m-%d")
     s12_dir = data_dir / "clean" / "s12" / str(period)
-    s34_dir = data_dir / "s34"
+    s34_dir = data_dir / "clean" / "s34" / str(period)
     s12 = pd.read_parquet(s12_dir / "holdings_s12.parquet")
-    s34 = pd.read_pickle(s34_dir / f"holdings_{qdate}.pkl")
+    s34 = pd.read_parquet(s34_dir / "holdings_s34.parquet")
     s12_security = pd.read_parquet(s12_dir / "holdings_s12_security.parquet")
-    s34_security = pd.read_pickle(s34_dir / f"security_{qdate}.pkl")
+    s34_security = pd.read_parquet(s34_dir / "holdings_s34_security.parquet")
     combined, audit = combine_source_holdings(s12, s34, period)
     checked, conflicts = compare_security_links(s12_security, s34_security)
     audit["same_date_cusips_compared"] = len(checked)
     audit["cross_source_link_conflicts"] = len(conflicts)
     s12_log = pd.read_parquet(s12_dir / "filter_log_s12.parquet")
-    s34_log = pd.read_pickle(s34_dir / f"log_{qdate}.pkl")
+    s34_log = pd.read_parquet(s34_dir / "filter_log_s34.parquet")
     audit["s12_date_valid_match"] = _matching_rate(
         s12_log, "unique_cusip_at_report_date", "positive_shares_valid_cusip"
     )

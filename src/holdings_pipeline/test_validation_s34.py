@@ -1,0 +1,110 @@
+"""Data validation for the S34 filter log.
+
+For every quarter, checks that row counts never increase across the main
+filter steps and that each step keeps at least a minimum share of the
+previous step's rows.
+
+The minimum shares were set before looking at the data and are not changed
+after the fact. Quarters known to fall below them are listed in
+KNOWN_EXCEPTIONS with the reason; a separate test fails once an exception is
+no longer needed, so the list stays accurate.
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import pandas as pd
+import pytest
+
+from settings import config
+
+LOG_PATH = Path(config("DATA_DIR")) / "clean" / "s34" / "filter_log_s34.parquet"
+
+MAIN_STEPS = [
+    "1_download",
+    "2_match_cusip",
+    "3_common_stock",
+    "4_price",
+    "5_aggregate_permco",
+]
+
+# Minimum share of rows each step keeps relative to the previous step.
+# Set from what each step does, before computing the ratios.
+MIN_KEEP = {
+    # 13F securities are US-listed, so nearly all should match CRSP;
+    # a large drop would signal a CUSIP or date-matching bug.
+    "2_match_cusip": 0.90,
+    # Removes ETFs, ADRs, funds and other non-common shares. This share
+    # likely grows over time with ETF holdings, so the bound is wide.
+    "3_common_stock": 0.50,
+    # Only drops positions without a valid price or on non-major exchanges.
+    "4_price": 0.99,
+    # Only merges share classes of the same company held by the same manager.
+    "5_aggregate_permco": 0.95,
+}
+
+# (step, quarter) -> reason. Each entry must be explained and documented.
+LATER_CUSIP = (
+    "Thomson records some holdings under CUSIPs the security only receives "
+    "later (see pull_s34.py, step 2). With S34_HISTORICAL_FALLBACK off, the "
+    "agreed matching policy, these holdings are not matched."
+)
+KNOWN_EXCEPTIONS = {
+    ("2_match_cusip", "2017-12-31"): LATER_CUSIP,
+    ("2_match_cusip", "2018-03-31"): LATER_CUSIP,
+}
+
+pytestmark = pytest.mark.skipif(
+    not LOG_PATH.exists(), reason="requires the S34 filter log built from WRDS data"
+)
+
+
+@pytest.fixture(scope="module")
+def counts_by_step():
+    """Return a quarter x step table of row counts for the main steps."""
+    log = pd.read_parquet(LOG_PATH)
+    return log[log["step"].isin(MAIN_STEPS)].pivot(
+        index="quarter", columns="step", values="n_obs"
+    )[MAIN_STEPS]
+
+
+def test_every_quarter_has_all_main_steps(counts_by_step):
+    assert counts_by_step.notna().all().all()
+
+
+def test_row_counts_never_increase(counts_by_step):
+    increases = counts_by_step.diff(axis=1).iloc[:, 1:] > 0
+    assert not increases.any().any(), counts_by_step[increases.any(axis=1)]
+
+
+def test_every_quarter_logs_the_same_steps():
+    log = pd.read_parquet(LOG_PATH)
+    steps = log.groupby("quarter")["step"].apply(frozenset)
+    assert steps.nunique() == 1, steps.value_counts()
+
+
+def _keep_share(counts_by_step, step):
+    prev = MAIN_STEPS[MAIN_STEPS.index(step) - 1]
+    return counts_by_step[step] / counts_by_step[prev]
+
+
+@pytest.mark.parametrize("step, min_keep", MIN_KEEP.items())
+def test_step_keeps_minimum_share(counts_by_step, step, min_keep):
+    keep = _keep_share(counts_by_step, step)
+    known = pd.to_datetime([q for s, q in KNOWN_EXCEPTIONS if s == step])
+    low = keep[(keep < min_keep) & ~keep.index.isin(known)]
+    assert low.empty, low
+
+
+def test_known_exceptions_are_still_below_the_minimum(counts_by_step):
+    """Fail once a listed exception passes, so it can be removed from the list."""
+    for step, quarter in KNOWN_EXCEPTIONS:
+        q = pd.Timestamp(quarter)
+        if q not in counts_by_step.index:  # e.g. a single-quarter doit run
+            continue
+        keep = _keep_share(counts_by_step, step).loc[q]
+        assert keep < MIN_KEEP[step], (
+            f"{step} in {quarter} now keeps {keep:.3f}; remove it from KNOWN_EXCEPTIONS"
+        )
