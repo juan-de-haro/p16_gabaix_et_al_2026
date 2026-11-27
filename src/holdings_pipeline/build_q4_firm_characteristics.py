@@ -245,7 +245,7 @@ def run(quarter="2022Q4", data_dir=None, output_dir=None, start=None, end=None):
         / "combined"
         / str(period)
         / "holdings_provisional.parquet",
-        "jkp": data_dir / "jkp_raw.pkl",
+        "jkp": data_dir / "raw" / "jkp" / "jkp_raw.parquet",
         "crsp": raw_crsp,
     }
     missing = {name: str(path) for name, path in paths.items() if not path.exists()}
@@ -254,7 +254,7 @@ def run(quarter="2022Q4", data_dir=None, output_dir=None, start=None, end=None):
             f"Missing Q4 inputs: {missing}. Run steps 1-2 in the module header."
         )
     holdings = pd.read_parquet(paths["holdings"])
-    jkp = pd.read_pickle(paths["jkp"])
+    jkp = pd.read_parquet(paths["jkp"])
     monthly = pd.read_parquet(paths["crsp"])
     table, coverage, audit = build_firm_table(holdings, jkp, monthly, period)
     target = data_dir / "clean" / "firm_characteristics" / str(period)

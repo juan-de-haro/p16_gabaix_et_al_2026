@@ -54,7 +54,7 @@ Outputs in `_data/`:
 - `clean/s34/<YYYYQn>/holdings_s34_security.parquet` (accepted security-level links for reconciliation)
 - `clean/s34/filter_log_s34.parquet` (all quarters)
 - Raw layer (`pull_s34.py`, as delivered): `raw/s34/<YYYYQn>/s34type1.parquet`, `s34type3.parquet`, `msf_v2.parquet`, and `raw/crsp/stocknames_v2.parquet`. `clean_s34.py` reads only these, so a cleaning change (e.g. `S34_HISTORICAL_FALLBACK`) reruns without WRDS.
-- `firm_quarterly.pkl`, `firm_quarterly_jkp_full.pkl`, `filter_log_firms.pkl`
+- JKP: `clean/jkp/firm_quarterly_jkp.parquet`, `firm_quarterly_jkp_full.parquet`, `filter_log_jkp.parquet`; raw layer `raw/jkp/jkp_raw.parquet` and `jkp_full_raw.parquet`
 
 Units: S34 `dollar_holding` and `aum` are in USD; JKP `me` and `be` are in
 millions of USD. Each script's docstring documents its processing rules.

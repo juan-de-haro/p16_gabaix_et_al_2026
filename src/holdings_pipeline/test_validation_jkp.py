@@ -16,7 +16,7 @@ import pytest
 
 from settings import config
 
-LOG_PATH = Path(config("DATA_DIR")) / "filter_log_firms.pkl"
+LOG_PATH = Path(config("DATA_DIR")) / "clean" / "jkp" / "filter_log_jkp.parquet"
 
 STEPS = [
     "5a_aggregate_permco",
@@ -53,7 +53,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def filter_log():
     """Return the JKP filter log restricted to the firm-level steps."""
-    log = pd.read_pickle(LOG_PATH)
+    log = pd.read_parquet(LOG_PATH)
     return log[log["step"].isin(STEPS)]
 
 

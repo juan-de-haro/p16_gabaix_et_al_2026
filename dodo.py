@@ -274,7 +274,10 @@ def task_jkp():
     from doit.tools import config_changed
 
     q = _pipeline_quarter_end()
-    raw = [DATA_DIR / "jkp_raw.pkl", DATA_DIR / "jkp_full_raw.pkl"]
+    raw = [
+        DATA_DIR / "raw" / "jkp" / "jkp_raw.parquet",
+        DATA_DIR / "raw" / "jkp" / "jkp_full_raw.parquet",
+    ]
     yield {
         "name": "pull",
         "doc": "Pull JKP characteristics from WRDS",
@@ -297,7 +300,7 @@ def task_jkp():
     }
     yield {
         "name": "clean",
-        "doc": "Build firm_quarterly and firm_quarterly_jkp_full",
+        "doc": "Build firm_quarterly_jkp and firm_quarterly_jkp_full",
         "actions": [[sys.executable, "src/holdings_pipeline/clean_jkp.py"]],
         "file_dep": raw
         + [
@@ -307,9 +310,9 @@ def task_jkp():
         ],
         "task_dep": ["jkp:pull"],
         "targets": [
-            DATA_DIR / "firm_quarterly.pkl",
-            DATA_DIR / "firm_quarterly_jkp_full.pkl",
-            DATA_DIR / "filter_log_firms.pkl",
+            DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp.parquet",
+            DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp_full.parquet",
+            DATA_DIR / "clean" / "jkp" / "filter_log_jkp.parquet",
         ],
         "clean": [],
     }
@@ -368,7 +371,7 @@ def task_firm_characteristics():
         ],
         "file_dep": [
             DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
-            DATA_DIR / "jkp_raw.pkl",
+            DATA_DIR / "raw" / "jkp" / "jkp_raw.parquet",
             raw_directory(start, end) / "raw_crsp_monthly.parquet",
             "src/holdings_pipeline/build_q4_firm_characteristics.py",
             "src/holdings_pipeline/clean_s12.py",
@@ -601,7 +604,7 @@ def task_run_pytest():
         "file_dep": src_py_files
         + [
             DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
-            DATA_DIR / "filter_log_firms.pkl",
+            DATA_DIR / "clean" / "jkp" / "filter_log_jkp.parquet",
         ],
         "task_dep": ["s34_clean", "jkp:clean"],
         "clean": True,

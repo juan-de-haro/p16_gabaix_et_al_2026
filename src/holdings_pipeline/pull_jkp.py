@@ -8,9 +8,9 @@ exchange (common, primary_sec, obs_main, exch_main all equal 1).
 Units: JKP market equity (me, market_equity) and book_equity are in
 millions of USD.
 
-Outputs (in DATA_DIR):
-    jkp_raw.pkl       characteristics used in the paper (Appendix D.1.2)
-    jkp_full_raw.pkl  the 153 main JKP characteristics (Figure 4, Panel B),
+Outputs (Parquet, in DATA_DIR/raw/jkp/):
+    jkp_raw.parquet       characteristics used in the paper (Appendix D.1.2)
+    jkp_full_raw.parquet  the 153 main JKP characteristics (Figure 4, Panel B),
                       listed in data_manual/jkp_153_characteristics.csv
                       (from bkelly-lab/ReplicationCrisis, Factor Details.xlsx)
 
@@ -38,6 +38,9 @@ import wrds
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
+RAW_DIR = DATA_DIR / "raw" / "jkp"
+RAW_PATH = RAW_DIR / "jkp_raw.parquet"
+RAW_FULL_PATH = RAW_DIR / "jkp_full_raw.parquet"
 MANUAL_DATA_DIR = Path(config("MANUAL_DATA_DIR"))
 JKP_START = config("JKP_START", default="2022-12-31", cast=str)
 JKP_END = config("JKP_END", default="2022-12-31", cast=str)
@@ -73,22 +76,22 @@ def pull_jkp(db, start, end, cols):
 
 
 def load_jkp_raw(data_dir=DATA_DIR):
-    return pd.read_pickle(Path(data_dir) / "jkp_raw.pkl")
+    return pd.read_parquet(Path(data_dir) / "raw" / "jkp" / "jkp_raw.parquet")
 
 
 def load_jkp_full_raw(data_dir=DATA_DIR):
-    return pd.read_pickle(Path(data_dir) / "jkp_full_raw.pkl")
+    return pd.read_parquet(Path(data_dir) / "raw" / "jkp" / "jkp_full_raw.parquet")
 
 
 if __name__ == "__main__":
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
     db = wrds.Connection(wrds_username=config("WRDS_USERNAME"))
 
     jkp = pull_jkp(db, JKP_START, JKP_END, BASE_COLS + CHAR_COLS)
-    jkp.to_pickle(DATA_DIR / "jkp_raw.pkl")
+    jkp.to_parquet(RAW_PATH, index=False)
 
     chars153 = load_chars153()
     jkp_full = pull_jkp(db, JKP_START, JKP_END, ["permco", "eom", "me"] + chars153)
-    jkp_full.to_pickle(DATA_DIR / "jkp_full_raw.pkl")
+    jkp_full.to_parquet(RAW_FULL_PATH, index=False)
 
     db.close()

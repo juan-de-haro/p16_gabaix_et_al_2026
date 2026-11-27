@@ -17,7 +17,7 @@
 | `raw_s34_holdings` | WRDS, Thomson Reuters `tr_13f.s34type1`, `tr_13f.s34type3` | Quarterly | 13F institutional holdings |
 | `raw_crsp_monthly` | WRDS, CRSP `crspm.msf_v2` | Monthly | Prices, returns, market cap |
 | `raw_crsp_names` | WRDS, CRSP stock names | Event-based | CUSIP → PERMNO link, firm names |
-| `raw_jkp_characteristics` | jkpfactors.com (US) | Monthly | Firm characteristics |
+| `raw_jkp_characteristics` | WRDS, JKP `contrib_global_factor.global_factor` (US) | Quarterly (quarter-end months) | Firm characteristics |
 
 ## Tables
 
@@ -109,20 +109,29 @@ only through `load_raw_s34()` and `load_crsp_names()`.
 
 ### `raw_jkp_characteristics`
 
-- **Script:** `pull_jkp.py`
+- **Script:** `pull_jkp.py` (implemented for the JKP contribution); cleaned by `clean_jkp.py`
+- **Source table:** `contrib_global_factor.global_factor` on WRDS, US stocks from CRSP (`excntry = 'USA'`, `source_crsp = 1`), quarter-end months only
 - **One row per:** month × security
-- **Key:** `eom`, `id` (`id` is the PERMNO for US stocks)
+- **Key:** `eom`, `permno`
 
 | Column | Description |
 |---|---|
 | `eom` | Month-end date |
-| `id` | Security identifier (PERMNO) |
+| `permno`, `permco`, `gvkey` | Security, company, and Compustat identifiers |
 | `size_grp` | JKP size group (used to drop micro and nano caps) |
-| `me`, `be_me`, `at_gr1`, `gp_at`, `ret_12_1`, `beta_60m`, dividend-to-assets | The characteristics used in the paper |
+| `me`, `book_equity` | Market and book equity, millions of USD (log book-to-market is recomputed in layer 2) |
+| `at_gr1`, `gp_at`, `ret_12_1`, `div_at`, `beta_60m` | The other characteristics used in the paper |
 | All other characteristics | Kept for Figure 4, Panel B only |
+
+The implemented pull saves two Parquet files in `_data/raw/jkp/`:
+`jkp_raw.parquet` with the columns above, and `jkp_full_raw.parquet` with
+`permco`, `eom`, `me`, and the 153 main JKP characteristics listed in
+`data_manual/jkp_153_characteristics.csv`. The WRDS table is already
+restricted to common, primary securities on the main exchange. `clean_jkp.py`
+reads the raw files only through `load_jkp_raw()` and `load_jkp_full_raw()`.
 
 ## Open questions
 
 - **Split adjustment factor (resolved):** `msf_v2.mthcumfacshr`, the cumulative factor to adjust shares. Both S12 and S34 use it to convert share quantities between dates.
-- **Exact JKP column name** for dividends-to-assets.
+- **Exact JKP column name (resolved):** dividends-to-assets is `div_at`.
 - **Template pulls** (`pull_CRSP_Compustat.py`, FF factors, MSIX index): not needed by this design. Remove them unless a later step uses them.
