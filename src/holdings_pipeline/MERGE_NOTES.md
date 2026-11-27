@@ -173,8 +173,8 @@ The final clean-table names remain those in the original specification:
 `holdings`, `investors`, `firm_monthly`, `firm_quarterly`,
 `firm_quarterly_jkp_full`, `firm_names`, and `filter_log`.
 
-Use Parquet for the shared contract. The S34/JKP contribution currently writes
-Pickle files, so its persistence layer still needs alignment. Keep the raw,
+Use Parquet for the shared contract. S34 and JKP now write Parquet in separate
+raw (`_data/raw/`) and clean (`_data/clean/`) layers. Keep the raw,
 clean, and application-input layers distinct and retain query/version provenance.
 
 `firm_monthly` covers the broad eligible CRSP universe, not just companies in

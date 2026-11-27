@@ -1,8 +1,9 @@
-"""Tests for pull_s34.py.
+"""Tests for pull_s34.py (raw layer) and clean_s34.py (clean layer).
 
-Unit tests run build_s34_quarter on a small fake WRDS connection, so they need
-no network access. Output tests check the saved S34 files in DATA_DIR and are
-skipped when those files do not exist yet.
+Unit tests pull raw tables from a small fake WRDS connection and clean them
+with build_s34_quarter, so they need no network access. Output tests check
+the saved S34 files in DATA_DIR and are skipped when those files do not exist
+yet.
 
     uv run pytest src/holdings_pipeline/test_s34.py
 """
@@ -16,23 +17,43 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from holdings_pipeline.pull_s34 import (
+from holdings_pipeline.clean_s34 import (
     S34_DIR,
     build_s34_quarter,
+    clean_s34,
+    cusip_map_from_names,
     load_s34,
-    pull_s34,
     quarter_dir,
     quarter_file,
+)
+from holdings_pipeline.pull_s34 import (
+    load_raw_s34,
+    pull_names,
+    pull_quarter,
+    pull_s34,
+    raw_file,
 )
 
 RDATE = "2022-12-31"
 
 
-def _common(permno, permco, cusip, sharetype="NS", usincflg="Y", issuertype="CORP"):
+def _common(
+    permno,
+    permco,
+    cusip,
+    sharetype="NS",
+    usincflg="Y",
+    issuertype="CORP",
+    namedt="2000-01-01",
+    nameenddt="2099-12-31",
+):
     return {
         "permno": permno,
         "permco": permco,
         "cusip": cusip,
+        "hdrcusip": cusip,
+        "namedt": namedt,
+        "nameenddt": nameenddt,
         "sharetype": sharetype,
         "securitytype": "EQTY",
         "securitysubtype": "COM",
@@ -42,7 +63,7 @@ def _common(permno, permco, cusip, sharetype="NS", usincflg="Y", issuertype="COR
 
 
 class FakeDB:
-    """Return canned tables for the four queries made by build_s34_quarter."""
+    """Return canned tables for the queries made by pull_quarter and pull_names."""
 
     def __init__(self):
         self.managers = pd.DataFrame(
@@ -51,6 +72,7 @@ class FakeDB:
                 "mgrname": ["MANAGER ONE", "MANAGER TWO"],
                 "typecode": [4.0, np.nan],
                 "fdate": ["2022-12-31", "2023-03-31"],
+                "rdate": [RDATE, RDATE],
             }
         )
         self.holdings = pd.DataFrame(
@@ -163,9 +185,16 @@ CUSIP_MAP = pd.DataFrame(
 )
 
 
+def _build(db, cusip_map=CUSIP_MAP, **kwargs):
+    """Pull raw tables from the fake connection, then clean them."""
+    raw = pull_quarter(db, RDATE)
+    raw["names"] = pull_names(db)
+    return build_s34_quarter(raw, RDATE, cusip_map, **kwargs)
+
+
 @pytest.fixture(scope="module")
 def result():
-    return build_s34_quarter(FakeDB(), RDATE, CUSIP_MAP)
+    return _build(FakeDB())
 
 
 def test_holdings_values(result):
@@ -193,9 +222,7 @@ def test_excluded_positions(result):
 
 
 def test_historical_fallback_is_explicit_sensitivity():
-    hold, _, _, _ = build_s34_quarter(
-        FakeDB(), RDATE, CUSIP_MAP, historical_fallback=True
-    )
+    hold, _, _, _ = _build(FakeDB(), historical_fallback=True)
     assert (
         hold.set_index(["investor_id", "permco"]).loc[("s34_1", 200), "dollar_holding"]
         == 250
@@ -211,7 +238,7 @@ def test_ambiguous_direct_cusip_is_quarantined():
         ],
         ignore_index=True,
     )
-    hold, _, _, _ = build_s34_quarter(db, RDATE, CUSIP_MAP)
+    hold, _, _, _ = _build(db)
     assert 100 not in set(hold.permco)
     assert 600 not in set(hold.permco)
 
@@ -258,12 +285,20 @@ def test_quarter_paths_follow_the_s12_layout(tmp_path):
     )
 
 
-def test_saved_parquet_round_trip(tmp_path):
-    """pull_s34 writes Parquet files that load back unchanged."""
+def test_raw_then_clean_round_trip(tmp_path):
+    """pull_s34 saves raw tables; clean_s34 turns them into the S34 files."""
+    db = FakeDB()
+    pull_s34(db, [RDATE], raw_dir=tmp_path / "raw" / "s34")
+    names_path = tmp_path / "raw" / "crsp" / "stocknames_v2.parquet"
+    names_path.parent.mkdir(parents=True)
+    pull_names(db).to_parquet(names_path, index=False)
+    raw = load_raw_s34(RDATE, "s34type3", data_dir=tmp_path)
+    assert len(raw) == len(db.holdings)  # raw layer keeps every row
+
     out_dir = tmp_path / "clean" / "s34"
-    pull_s34(FakeDB(), [RDATE], CUSIP_MAP, out_dir=out_dir)
-    hold, inv, log, _, security = build_s34_quarter(
-        FakeDB(), RDATE, CUSIP_MAP, include_security=True
+    clean_s34([RDATE], out_dir=out_dir, data_dir=tmp_path)
+    hold, inv, log, _, security = _build(
+        FakeDB(), cusip_map=None, include_security=True
     )
     expected = {"holdings": hold, "investors": inv, "log": log, "security": security}
     for kind, frame in expected.items():
@@ -272,6 +307,81 @@ def test_saved_parquet_round_trip(tmp_path):
             saved, frame.reset_index(drop=True), check_dtype=False
         )
     assert len(load_s34("holdings", data_dir=tmp_path)) == len(hold)
+    assert raw_file(RDATE, "msf_v2", tmp_path).name == "msf_v2.parquet"
+
+
+def test_clean_keeps_first_vintage_and_positive_shares(result):
+    """Rows the raw layer keeps but cleaning must drop leave the result unchanged."""
+    db = FakeDB()
+    # A later vintage of manager 1's report, carried forward by TR
+    db.managers = pd.concat(
+        [
+            db.managers,
+            pd.DataFrame(
+                [
+                    {
+                        "mgrno": 1.0,
+                        "mgrname": "MANAGER ONE",
+                        "typecode": 4.0,
+                        "fdate": "2023-06-30",
+                        "rdate": RDATE,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    extra = [
+        {"mgrno": 1.0, "fdate": "2023-06-30", "cusip": "AAA11111", "shares": 999.0},
+        {"mgrno": 1.0, "fdate": "2022-12-31", "cusip": "DDD44444", "shares": 0.0},
+    ]
+    db.holdings = pd.concat([db.holdings, pd.DataFrame(extra)], ignore_index=True)
+    hold, inv, log, _ = _build(db)
+    pd.testing.assert_frame_equal(hold, result[0])
+    pd.testing.assert_frame_equal(inv, result[1])
+    assert log.set_index("step").loc["1_download", "n_obs"] == 8
+
+
+def test_cusip_must_be_valid_on_report_date():
+    db = FakeDB()
+    # This name record ended before the report date, so its CUSIP cannot link
+    db.names = pd.concat(
+        [
+            db.names,
+            pd.DataFrame([_common(70, 700, "OLD00000", nameenddt="2010-12-31")]),
+        ],
+        ignore_index=True,
+    )
+    db.holdings = pd.concat(
+        [
+            db.holdings,
+            pd.DataFrame(
+                [
+                    {
+                        "mgrno": 1.0,
+                        "fdate": "2022-12-31",
+                        "cusip": "OLD00000",
+                        "shares": 10.0,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    hold, _, _, _ = _build(db)
+    assert 700 not in set(hold["permco"])
+
+
+def test_cusip_map_uses_historical_and_header_cusips():
+    names = pd.DataFrame(
+        {
+            "permno": [1, 1, 2],
+            "cusip": ["OLD", "NEW", "XYZ"],
+            "hdrcusip": ["NEW", "NEW", None],
+        }
+    )
+    got = set(map(tuple, cusip_map_from_names(names)[["cusip", "permno"]].to_numpy()))
+    assert got == {("OLD", 1), ("NEW", 1), ("XYZ", 2)}
 
 
 # Checks on saved outputs --------------------------------------------------

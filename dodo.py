@@ -196,12 +196,12 @@ def _pipeline_quarter_end():
     return end.to_period("Q").end_time.strftime("%Y-%m-%d")
 
 
-def task_s34():
-    """Pull and clean S34 for the same quarter as the S12 task."""
+def task_s34_pull():
+    """Download the raw S34 tables for the same quarter as the S12 task (WRDS)."""
     from doit.tools import config_changed
 
     q = _pipeline_quarter_end()
-    s34_dir = DATA_DIR / "clean" / "s34" / str(pd.Period(q, freq="Q"))
+    raw_dir = DATA_DIR / "raw" / "s34" / str(pd.Period(q, freq="Q"))
     return {
         "actions": [
             [
@@ -211,13 +211,48 @@ def task_s34():
                 f"--S34_END={q}",
             ]
         ],
-        "file_dep": ["src/holdings_pipeline/pull_s34.py", "src/settings.py"],
+        "file_dep": ["src/holdings_pipeline/pull_s34.py"],
+        "targets": [
+            raw_dir / "s34type1.parquet",
+            raw_dir / "s34type3.parquet",
+            raw_dir / "msf_v2.parquet",
+            DATA_DIR / "raw" / "crsp" / "stocknames_v2.parquet",
+        ],
+        "uptodate": [config_changed({"quarter": q})],
+        "clean": [],
+    }
+
+
+def task_s34_clean():
+    """Clean the raw S34 tables (no WRDS connection needed)."""
+    from doit.tools import config_changed
+
+    q = _pipeline_quarter_end()
+    period = str(pd.Period(q, freq="Q"))
+    raw_dir = DATA_DIR / "raw" / "s34" / period
+    s34_dir = DATA_DIR / "clean" / "s34" / period
+    return {
+        "actions": [
+            [
+                sys.executable,
+                "src/holdings_pipeline/clean_s34.py",
+                f"--S34_START={q}",
+                f"--S34_END={q}",
+            ]
+        ],
+        "file_dep": [
+            "src/holdings_pipeline/clean_s34.py",
+            "src/holdings_pipeline/pull_s34.py",
+            raw_dir / "s34type1.parquet",
+            raw_dir / "s34type3.parquet",
+            raw_dir / "msf_v2.parquet",
+            DATA_DIR / "raw" / "crsp" / "stocknames_v2.parquet",
+        ],
         "targets": [
             s34_dir / "holdings_s34.parquet",
             s34_dir / "investors_s34.parquet",
             s34_dir / "filter_log_s34.parquet",
             s34_dir / "holdings_s34_security.parquet",
-            DATA_DIR / "raw" / "s34" / "crsp_cusip_map.parquet",
             DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
         ],
         "uptodate": [
@@ -239,7 +274,10 @@ def task_jkp():
     from doit.tools import config_changed
 
     q = _pipeline_quarter_end()
-    raw = [DATA_DIR / "jkp_raw.pkl", DATA_DIR / "jkp_full_raw.pkl"]
+    raw = [
+        DATA_DIR / "raw" / "jkp" / "jkp_raw.parquet",
+        DATA_DIR / "raw" / "jkp" / "jkp_full_raw.parquet",
+    ]
     yield {
         "name": "pull",
         "doc": "Pull JKP characteristics from WRDS",
@@ -262,7 +300,7 @@ def task_jkp():
     }
     yield {
         "name": "clean",
-        "doc": "Build firm_quarterly and firm_quarterly_jkp_full",
+        "doc": "Build firm_quarterly_jkp and firm_quarterly_jkp_full",
         "actions": [[sys.executable, "src/holdings_pipeline/clean_jkp.py"]],
         "file_dep": raw
         + [
@@ -272,9 +310,9 @@ def task_jkp():
         ],
         "task_dep": ["jkp:pull"],
         "targets": [
-            DATA_DIR / "firm_quarterly.pkl",
-            DATA_DIR / "firm_quarterly_jkp_full.pkl",
-            DATA_DIR / "filter_log_firms.pkl",
+            DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp.parquet",
+            DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp_full.parquet",
+            DATA_DIR / "clean" / "jkp" / "filter_log_jkp.parquet",
         ],
         "clean": [],
     }
@@ -303,7 +341,7 @@ def task_holdings_provisional():
             DATA_DIR / "clean" / "s34" / quarter / "holdings_s34_security.parquet",
             "src/holdings_pipeline/integrate_holdings.py",
         ],
-        "task_dep": ["s12:process", "s34"],
+        "task_dep": ["s12:process", "s34_clean"],
         "targets": [
             DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
             OUTPUT_DIR / "combined" / quarter / "matching_audit.json",
@@ -333,7 +371,7 @@ def task_firm_characteristics():
         ],
         "file_dep": [
             DATA_DIR / "clean" / "combined" / quarter / "holdings_provisional.parquet",
-            DATA_DIR / "jkp_raw.pkl",
+            DATA_DIR / "raw" / "jkp" / "jkp_raw.parquet",
             raw_directory(start, end) / "raw_crsp_monthly.parquet",
             "src/holdings_pipeline/build_q4_firm_characteristics.py",
             "src/holdings_pipeline/clean_s12.py",
@@ -566,9 +604,9 @@ def task_run_pytest():
         "file_dep": src_py_files
         + [
             DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
-            DATA_DIR / "filter_log_firms.pkl",
+            DATA_DIR / "clean" / "jkp" / "filter_log_jkp.parquet",
         ],
-        "task_dep": ["s34", "jkp:clean"],
+        "task_dep": ["s34_clean", "jkp:clean"],
         "clean": True,
         "verbosity": 2,
     }

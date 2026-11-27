@@ -119,14 +119,14 @@ def test_jkp_full(jkp, built):
 # Checks on saved outputs --------------------------------------------------
 
 DATA_DIR = Path(config("DATA_DIR"))
-FQ_PATH = DATA_DIR / "firm_quarterly.pkl"
-FULL_PATH = DATA_DIR / "firm_quarterly_jkp_full.pkl"
+FQ_PATH = DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp.parquet"
+FULL_PATH = DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp_full.parquet"
 REQ = ["me", "be", "log_be_me", "at_gr1", "gp_at", "ret_12_1", "div_at", "beta_60m"]
 
 
-@pytest.mark.skipif(not FQ_PATH.exists(), reason="No saved firm_quarterly yet")
+@pytest.mark.skipif(not FQ_PATH.exists(), reason="No saved firm_quarterly_jkp yet")
 def test_saved_firm_quarterly():
-    fq = pd.read_pickle(FQ_PATH)
+    fq = pd.read_parquet(FQ_PATH)
     assert not fq.duplicated(["quarter", "permco"]).any()
     assert fq[REQ].notna().all().all()
     assert (fq["me"] > 0).all() and (fq["be"] > 0).all()
@@ -139,8 +139,8 @@ def test_saved_firm_quarterly():
     not (FQ_PATH.exists() and FULL_PATH.exists()), reason="No saved JKP tables yet"
 )
 def test_saved_jkp_full_matches_universe():
-    fq = pd.read_pickle(FQ_PATH)
-    full = pd.read_pickle(FULL_PATH)
+    fq = pd.read_parquet(FQ_PATH)
+    full = pd.read_parquet(FULL_PATH)
     assert not full.duplicated(["quarter", "permco"]).any()
     keys_fq = set(zip(fq["quarter"], fq["permco"]))
     keys_full = set(zip(full["quarter"], full["permco"]))

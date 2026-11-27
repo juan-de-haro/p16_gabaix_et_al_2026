@@ -6,8 +6,7 @@ previous step's rows.
 
 The minimum shares were set before looking at the data and are not changed
 after the fact. Quarters known to fall below them are listed in
-KNOWN_EXCEPTIONS with the reason; a separate test fails once an exception is
-no longer needed, so the list stays accurate.
+KNOWN_EXCEPTIONS with the reason.
 """
 
 import sys
@@ -48,7 +47,7 @@ MIN_KEEP = {
 # (step, quarter) -> reason. Each entry must be explained and documented.
 LATER_CUSIP = (
     "Thomson records some holdings under CUSIPs the security only receives "
-    "later (see pull_s34.py, step 2). With S34_HISTORICAL_FALLBACK off, the "
+    "later (see clean_s34.py, step 2). With S34_HISTORICAL_FALLBACK off, the "
     "agreed matching policy, these holdings are not matched."
 )
 KNOWN_EXCEPTIONS = {

@@ -1,4 +1,4 @@
-"""Build firm_quarterly and firm_quarterly_jkp_full from raw JKP data.
+"""Build the JKP firm tables from raw JKP data.
 
 Implements step 5 of design/02_data_processing.md (firm universe) and the
 characteristic winsorizing in step 7, following Appendix D.1.2.
@@ -21,11 +21,14 @@ ret_12_1 at 1%/99%; div_at at 99% only; beta_60m not winsorized.
 
 Units: me and be are in millions of USD.
 
-Outputs (in DATA_DIR):
-    firm_quarterly.pkl           quarter x permco
-    firm_quarterly_jkp_full.pkl  quarter x permco, 153 characteristics,
-                                 same universe as firm_quarterly, not winsorized
-    filter_log_firms.pkl         quarter, step, n_obs, n_investors, n_firms
+Outputs (Parquet, in DATA_DIR/clean/jkp/):
+    firm_quarterly_jkp.parquet       quarter x permco
+    firm_quarterly_jkp_full.parquet  quarter x permco, 153 characteristics, same
+                                     universe as firm_quarterly_jkp, not winsorized
+    filter_log_jkp.parquet           quarter, step, n_obs, n_investors, n_firms
+
+The names carry "_jkp" because these are the JKP source tables. The final
+firm_quarterly of design/02 is built once the S12/S34 sample is combined.
 
 Usage (after pull_jkp.py):
 
@@ -45,6 +48,10 @@ from holdings_pipeline.pull_jkp import load_chars153, load_jkp_full_raw, load_jk
 from settings import config
 
 DATA_DIR = Path(config("DATA_DIR"))
+CLEAN_DIR = DATA_DIR / "clean" / "jkp"
+FQ_PATH = CLEAN_DIR / "firm_quarterly_jkp.parquet"
+FULL_PATH = CLEAN_DIR / "firm_quarterly_jkp_full.parquet"
+LOG_PATH = CLEAN_DIR / "filter_log_jkp.parquet"
 
 CHARS = ["at_gr1", "gp_at", "div_at", "ret_12_1", "beta_60m"]
 SIZE_ORDER = {"nano": 0, "micro": 1, "small": 2, "large": 3, "mega": 4}
@@ -158,11 +165,27 @@ def build_jkp_full(df, universe, chars153):
     return out[["quarter", "permco"] + chars153]
 
 
+def load_firm_quarterly_jkp(data_dir=DATA_DIR):
+    return pd.read_parquet(
+        Path(data_dir) / "clean" / "jkp" / "firm_quarterly_jkp.parquet"
+    )
+
+
+def load_firm_quarterly_jkp_full(data_dir=DATA_DIR):
+    path = Path(data_dir) / "clean" / "jkp" / "firm_quarterly_jkp_full.parquet"
+    return pd.read_parquet(path)
+
+
+def load_filter_log_jkp(data_dir=DATA_DIR):
+    return pd.read_parquet(Path(data_dir) / "clean" / "jkp" / "filter_log_jkp.parquet")
+
+
 if __name__ == "__main__":
+    CLEAN_DIR.mkdir(parents=True, exist_ok=True)
     fq, log = build_firm_quarterly(load_jkp_raw())
-    fq.to_pickle(DATA_DIR / "firm_quarterly.pkl")
-    log.to_pickle(DATA_DIR / "filter_log_firms.pkl")
-    print("firm_quarterly:", fq.shape)
+    fq.to_parquet(FQ_PATH, index=False)
+    log.to_parquet(LOG_PATH, index=False)
+    print("firm_quarterly_jkp:", fq.shape)
 
     chars153 = load_chars153()
     raw = load_jkp_full_raw()
@@ -170,5 +193,5 @@ if __name__ == "__main__":
         [build_jkp_full(g, fq, chars153) for _, g in raw.groupby(raw["eom"].dt.year)],
         ignore_index=True,
     )
-    full.to_pickle(DATA_DIR / "firm_quarterly_jkp_full.pkl")
+    full.to_parquet(FULL_PATH, index=False)
     print("firm_quarterly_jkp_full:", full.shape)
