@@ -14,7 +14,7 @@
 | Raw table | Source | Frequency | Used for |
 |---|---|---|---|
 | `raw_s12_holdings` | WRDS, Thomson Reuters `tfn.s12` | Quarterly | Mutual fund holdings |
-| `raw_s34_holdings` | WRDS, Thomson Reuters `tfn.s34` | Quarterly | 13F institutional holdings |
+| `raw_s34_holdings` | WRDS, Thomson Reuters `tr_13f.s34type1`, `tr_13f.s34type3` | Quarterly | 13F institutional holdings |
 | `raw_crsp_monthly` | WRDS, CRSP `crspm.msf_v2` | Monthly | Prices, returns, market cap |
 | `raw_crsp_names` | WRDS, CRSP stock names | Event-based | CUSIP → PERMNO link, firm names |
 | `raw_jkp_characteristics` | jkpfactors.com (US) | Monthly | Firm characteristics |
@@ -47,19 +47,36 @@ transform share quantities.
 
 ### `raw_s34_holdings`
 
-- **Script:** `pull_tr_holdings.py`
-- **One row per:** file date × manager × security
-- **Key:** `fdate`, `mgrno`, `cusip`
+- **Script:** `pull_s34.py` (implemented for the S34 contribution); cleaned by `clean_s34.py`
+- **Source tables:** `tr_13f.s34type1` (manager reports) and `tr_13f.s34type3` (holdings)
+- **One row per:** file date × manager (`s34type1`); file date × manager × security (`s34type3`)
+- **Key:** `fdate`, `mgrno` (`s34type1`); `fdate`, `mgrno`, `cusip` (`s34type3`)
 
-| Column | Description |
-|---|---|
-| `fdate` | File date |
-| `rdate` | Report date |
-| `mgrno` | Manager identifier |
-| `mgrname` | Manager name |
-| `typecode` | Manager type |
-| `cusip` | Security identifier |
-| `shares` | Shares held |
+| Column | Table | Description |
+|---|---|---|
+| `fdate` | both | File date (data vintage); share quantities incorporate splits through this date |
+| `rdate` | `s34type1` | Report date of the holdings |
+| `mgrno` | both | Manager identifier |
+| `mgrname` | `s34type1` | Manager name |
+| `typecode` | `s34type1` | Manager type (Thomson Reuters typecode) |
+| `cusip` | `s34type3` | Security identifier (8-character CUSIP) |
+| `shares` | `s34type3` | Shares held |
+
+The implemented pull selects on `rdate` and keeps every `fdate` vintage of each
+manager report with that report date: TR carries reports forward for several
+quarters, so a manager–rdate pair can appear under several vintages.
+`s34type3` is restricted to the (`mgrno`, `fdate`) pairs of those reports, with
+no filter on shares. Files are saved per report date under
+`_data/raw/s34/YYYYQn/` as `s34type1.parquet` and `s34type3.parquet`, together
+with `msf_v2.parquet`: CRSP `permno`, `yyyymm`, `mthprc`, `mthcumfacshr`, and
+`primaryexch` for the `rdate` month and every `fdate` month of those reports,
+used to value holdings and to convert share quantities from `fdate` to `rdate`.
+The CRSP name history is saved once as `_data/raw/crsp/stocknames_v2.parquet`
+(`permno`, `permco`, `cusip`, `hdrcusip`, `namedt`, `nameenddt`, and the
+security attributes `sharetype`, `securitytype`, `securitysubtype`, `usincflg`,
+`issuertype`). The raw layer does not select vintages, filter shares, link
+CUSIPs, or join tables. `clean_s34.py` does all of this and reads the raw files
+only through `load_raw_s34()` and `load_crsp_names()`.
 
 ### `raw_crsp_monthly`
 
@@ -106,6 +123,6 @@ transform share quantities.
 
 ## Open questions
 
-- **Split adjustment factor:** which CRSP table provides it in the new CRSP format (`msf_v2`).
+- **Split adjustment factor (resolved):** `msf_v2.mthcumfacshr`, the cumulative factor to adjust shares. Both S12 and S34 use it to convert share quantities between dates.
 - **Exact JKP column name** for dividends-to-assets.
 - **Template pulls** (`pull_CRSP_Compustat.py`, FF factors, MSIX index): not needed by this design. Remove them unless a later step uses them.
