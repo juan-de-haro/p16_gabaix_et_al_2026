@@ -582,6 +582,30 @@ def task_build_chartbook_site():
     }
 
 
+def task_s34_coverage_report():
+    """Data validation table and figure for S34: filter counts and coverage."""
+    out = OUTPUT_DIR / "s34_coverage"
+    return {
+        "actions": [[sys.executable, "src/holdings_pipeline/report_s34_coverage.py"]],
+        "file_dep": [
+            "src/holdings_pipeline/report_s34_coverage.py",
+            DATA_DIR / "clean" / "s34" / "filter_log_s34.parquet",
+            DATA_DIR / "clean" / "jkp" / "filter_log_jkp.parquet",
+            DATA_DIR / "clean" / "jkp" / "firm_quarterly_jkp.parquet",
+            MANUAL_DATA_DIR / "paper_figure2.csv",
+        ],
+        "targets": [
+            out / "step_counts.parquet",
+            out / "filter_steps.tex",
+            out / "filter_steps.md",
+            out / "coverage_over_time.png",
+            out / "coverage_over_time.pdf",
+            out / "coverage_over_time.md",
+        ],
+        "clean": True,
+    }
+
+
 def task_run_pytest():
     """Run pytest and save results to OUTPUT_DIR"""
     src_py_files = list(Path("./src").rglob("*.py"))
