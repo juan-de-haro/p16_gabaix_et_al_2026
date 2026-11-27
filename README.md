@@ -59,6 +59,13 @@ Outputs in `_data/`:
 Units: S34 `dollar_holding` and `aum` are in USD; JKP `me` and `be` are in
 millions of USD. Each script's docstring documents its processing rules.
 
+**S34 data validation report.** `uv run doit s34_coverage_report` writes a table of
+observations after each filter step (S34 cleaning, the JKP universe, and the paper's
+Appendix D sample filters) and a figure comparing firms, investors, and holdings by
+year with the paper's Figure 2, each with a note, to `_output/s34_coverage/`
+(`filter_steps.tex`/`.md`, `coverage_over_time.png`/`.pdf`/`.md`). The paper's
+values come from `data_manual/paper_figure2.csv`.
+
 Two TR data issues found while building S34 also apply to S12:
 
 - Excluding foreign-incorporated firms (`usincflg = 'Y'`) drops US-listed
